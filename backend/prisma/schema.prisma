@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  SUPERVISOR
+  PREVENCION
+  CONDUCTOR
+}
+
+enum VehicleCheckStatus {
+  PENDIENTE
+  COMPLETADO
+  OBSERVADO
+}
+
+enum CheckItemStatus {
+  BUENO
+  MALO
+  NO_APLICA
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  rut      String? @unique
+  name     String
+  email    String? @unique
+  password String
+  role     Role
+
+  isActive           Boolean @default(true)
+  mustChangePassword Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicleChecks VehicleCheckList[]
+}
+
+model Vehicle {
+  id Int @id @default(autoincrement())
+
+  patent       String  @unique
+  vehicleType  String?
+  vehicleModel String?
+  company      String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VehicleCheckList {
+  id Int @id @default(autoincrement())
+
+  folio String?
+
+  date DateTime
+
+  patent              String
+  mileage             Int?
+  maintenanceUpToDate String?
+
+  vehicleType  String?
+  vehicleModel String?
+
+  driverName         String
+  supervisorName     String?
+  driverSignatureUrl String?
+
+  technicalReview              DateTime?
+  gasEmissionReview            DateTime?
+  driverLicenseExpiration      DateTime?
+  circulationPermitExpiration  DateTime?
+  mandatoryInsuranceExpiration DateTime?
+
+  generalObservation String?
+
+  status VehicleCheckStatus @default(PENDIENTE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  items  VehicleCheckItem[]
+  photos VehicleCheckPhoto[]
+}
+
+model VehicleCheckItem {
+  id Int @id @default(autoincrement())
+
+  itemName String
+
+  status      CheckItemStatus?
+  observation String?
+  photoUrl    String?
+
+  createdAt DateTime @default(now())
+
+  vehicleCheckListId Int
+  vehicleCheckList   VehicleCheckList @relation(fields: [vehicleCheckListId], references: [id], onDelete: Cascade)
+}
+
+model VehicleCheckPhoto {
+  id Int @id @default(autoincrement())
+
+  imageUrl String
+
+  createdAt DateTime @default(now())
+
+  vehicleCheckListId Int
+  vehicleCheckList   VehicleCheckList @relation(fields: [vehicleCheckListId], references: [id], onDelete: Cascade)
+}

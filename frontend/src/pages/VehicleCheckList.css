@@ -1,0 +1,622 @@
+.vehicle-check-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.vehicle-check-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.page-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  max-width: 100%;
+}
+
+.vehicle-check-header h2 {
+  margin: 0;
+  font-size: 38px;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.vehicle-check-header p {
+  margin-top: 10px;
+  color: #64748b;
+  max-width: 700px;
+  line-height: 1.5;
+}
+
+.vehicle-save-button {
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  padding: 15px 22px;
+  border-radius: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+
+.vehicle-save-button:hover {
+  transform: translateY(-1px);
+}
+
+.vehicle-card {
+  background: white;
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+  position: relative;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.card-title h3 {
+  margin: 0;
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.card-title svg {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.vehicle-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.vehicle-form-grid label,
+.vehicle-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 600;
+  color: #0f172a;
+  min-width: 0;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 14px;
+  background: white;
+  transition: 0.2s;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.check-table-header {
+  display: grid;
+  grid-template-columns: 1.5fr 180px 1fr 180px;
+  gap: 12px;
+  padding: 0 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.check-table {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.check-row {
+  display: grid;
+  grid-template-columns: 1.5fr 180px 1fr 180px;
+  gap: 12px;
+  align-items: center;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.check-name {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 0;
+}
+
+.check-name span {
+  word-break: break-word;
+}
+
+.check-number {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #2563eb;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.status-good {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.status-bad {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.photo-upload,
+.general-photo-upload {
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  font-weight: 600;
+  text-align: center;
+  transition: 0.2s;
+  min-height: 52px;
+  box-sizing: border-box;
+}
+
+.photo-upload:hover,
+.general-photo-upload:hover {
+  background: #dbeafe;
+}
+
+.photo-upload input,
+.general-photo-upload input {
+  display: none;
+}
+
+.photo-upload span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  margin-bottom: 18px;
+  min-height: 140px;
+}
+
+.general-upload-section {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.general-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.general-photo-card {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #dbe3f0;
+  background: #f8fafc;
+  height: 140px;
+}
+
+.general-photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ========================= */
+/* FOTOS */
+/* ========================= */
+
+.photos-section {
+  margin-top: 24px;
+}
+
+.general-upload-full {
+  justify-content: stretch;
+}
+
+.general-upload-full .general-photo-upload {
+  width: 100%;
+  min-height: 72px;
+}
+
+/* ========================= */
+/* BOTONES */
+/* ========================= */
+
+.remove-photo-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.remove-photo-button:hover {
+  background: #dc2626;
+}
+
+.vehicle-history-button {
+  border: 1px solid #2563eb;
+  background: white;
+  color: #2563eb;
+  padding: 15px 22px;
+  border-radius: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: 0.2s;
+}
+
+.vehicle-history-button:hover {
+  background: #eff6ff;
+}
+
+.vehicle-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 20px;
+}
+
+.footer-save-button {
+  min-width: 240px;
+  justify-content: center;
+}
+
+/* ========================= */
+/* AUTOCOMPLETE */
+/* ========================= */
+
+.vehicle-autocomplete {
+  position: relative;
+  z-index: 20;
+}
+
+.vehicle-options {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: white;
+  border: 1px solid #dbe3f0;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.vehicle-option {
+  width: 100%;
+  border: none;
+  background: white;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #0f172a;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.vehicle-option:hover {
+  background: #eff6ff;
+}
+
+.vehicle-option strong {
+  font-size: 15px;
+}
+
+.vehicle-option span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.vehicle-option.muted {
+  cursor: default;
+  color: #64748b;
+}
+
+/* ========================= */
+/* FIRMA DIGITAL */
+/* ========================= */
+
+.signature-section {
+  margin-top: 24px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.signature-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.signature-box {
+  width: 100%;
+  max-width: 100%;
+  background: #f8fbff;
+  border: 2px dashed #bfdbfe;
+  border-radius: 22px;
+  padding: 18px;
+  transition: 0.2s;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.signature-box:hover {
+  border-color: #2563eb;
+  background: #f8fbff;
+}
+
+.signature-box-fixed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.signature-canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 180px;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #dbeafe;
+  touch-action: none;
+  cursor: crosshair;
+  box-sizing: border-box;
+}
+
+.signature-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.signature-clear-button {
+  border: none;
+  background: #ef4444;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.signature-clear-button:hover {
+  background: #dc2626;
+}
+
+.signature-status {
+  color: #16a34a;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* ========================= */
+/* CAMPOS FIRMAS */
+/* ========================= */
+
+.signature-fields {
+  margin-top: 22px;
+  grid-template-columns: 1fr;
+}
+
+.signature-fields-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 28px;
+}
+
+/* ========================= */
+/* TABLET */
+/* ========================= */
+
+@media (max-width: 1200px) {
+  .vehicle-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .check-table-header {
+    display: none;
+  }
+
+  .check-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .photo-upload span {
+    max-width: 100%;
+  }
+}
+
+/* ========================= */
+/* MOBILE */
+/* ========================= */
+
+@media (max-width: 768px) {
+  .vehicle-check-page {
+    gap: 18px;
+  }
+
+  .vehicle-check-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+  }
+
+  .vehicle-check-header h2 {
+    font-size: 30px;
+    word-break: break-word;
+  }
+
+  .vehicle-check-header p {
+    font-size: 14px;
+  }
+
+  .vehicle-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vehicle-save-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .vehicle-card {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .card-title {
+    align-items: flex-start;
+  }
+
+  .card-title h3 {
+    font-size: 20px;
+  }
+
+  .check-row {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .check-name {
+    align-items: flex-start;
+  }
+
+  .check-name span {
+    font-size: 14px;
+  }
+
+  .photo-upload,
+  .general-photo-upload {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .general-upload-section {
+    justify-content: stretch;
+  }
+
+  textarea {
+    min-height: 120px;
+  }
+
+  .vehicle-history-button,
+  .footer-save-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .vehicle-form-footer {
+    justify-content: stretch;
+  }
+
+  .signature-fields-two {
+    grid-template-columns: 1fr;
+  }
+
+  .signature-box {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .signature-canvas {
+    height: 160px;
+  }
+
+  .signature-actions {
+    flex-direction: column;
+  }
+
+  .signature-clear-button {
+    width: 100%;
+  }
+}
