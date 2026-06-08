@@ -1,0 +1,383 @@
+@import "./LadderCheckHistory.css";
+
+.tools-history-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tools-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.tools-history-header h2 {
+  margin: 0;
+  font-size: 34px;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.tools-history-header p {
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 16px;
+}
+
+.tools-history-header-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tools-history-back-button {
+  border: 1px solid #2563eb;
+  background: white;
+  color: #2563eb;
+  border-radius: 14px;
+  padding: 13px 18px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.tools-history-card {
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.06);
+}
+
+.tools-history-empty {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #64748b;
+}
+
+.tools-history-empty h3 {
+  margin: 8px 0 0;
+  color: #0f172a;
+}
+
+.tools-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tools-history-row {
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 18px;
+  background: #f8fafc;
+}
+
+.tools-history-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #dbeafe;
+  color: #2563eb;
+  display: grid;
+  place-items: center;
+}
+
+.tools-history-info h3 {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.tools-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.tools-history-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tools-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tools-history-action,
+.tools-history-pdf-button,
+.tools-history-delete-button {
+  border: none;
+  border-radius: 14px;
+  padding: 13px 18px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tools-history-action {
+  background: #2563eb;
+  color: white;
+}
+
+.tools-history-pdf-button {
+  background: #0f9f8f;
+  color: white;
+}
+
+.tools-history-delete-button {
+  background: #ef4444;
+  color: white;
+}
+
+.tools-detail-overlay,
+.tools-delete-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.tools-detail-modal {
+  width: min(980px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+}
+
+.tools-detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 16px;
+}
+
+.tools-detail-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 24px;
+}
+
+.tools-detail-close {
+  border: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  cursor: pointer;
+}
+
+.tools-detail-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.tools-detail-grid div {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.tools-detail-grid span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.tools-detail-section {
+  margin-top: 22px;
+}
+
+.tools-detail-section h4 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.tools-detail-items {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.tools-detail-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.tools-detail-item.bad {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.tools-detail-item div {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #0f172a;
+}
+
+.tools-detail-item span {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.tools-detail-item p {
+  margin: 8px 0 0;
+  color: #475569;
+}
+
+.tools-detail-observation {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 16px;
+  color: #475569;
+}
+
+.tools-detail-footer-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tools-delete-modal {
+  width: min(460px, 100%);
+  background: white;
+  border-radius: 24px;
+  padding: 28px;
+  text-align: center;
+}
+
+.tools-delete-modal-icon {
+  width: 76px;
+  height: 76px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #dc2626;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 18px;
+}
+
+.tools-delete-modal h3 {
+  margin: 0;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.tools-delete-modal p {
+  color: #475569;
+}
+
+.tools-delete-warning {
+  color: #dc2626 !important;
+  font-weight: 800;
+}
+
+.tools-delete-modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.tools-delete-cancel-button,
+.tools-delete-confirm-button {
+  flex: 1;
+  border: none;
+  border-radius: 14px;
+  padding: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tools-delete-cancel-button {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tools-delete-confirm-button {
+  background: #ef4444;
+  color: white;
+}
+
+@media (max-width: 900px) {
+  .tools-history-header {
+    flex-direction: column;
+  }
+
+  .tools-history-header-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .tools-history-back-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tools-history-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tools-history-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tools-history-action,
+  .tools-history-pdf-button,
+  .tools-history-delete-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tools-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tools-detail-items {
+    grid-template-columns: 1fr;
+  }
+
+  .tools-detail-footer-actions {
+    flex-direction: column;
+  }
+}

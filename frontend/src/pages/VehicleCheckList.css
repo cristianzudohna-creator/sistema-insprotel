@@ -129,14 +129,20 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
+/* CHEQUEO GENERAL */
+
 .check-table-header {
   display: grid;
-  grid-template-columns: 1.5fr 180px 1fr 180px;
-  gap: 12px;
-  padding: 0 10px 14px;
+  grid-template-columns: 1.45fr 230px 1fr;
+  gap: 14px;
+  padding: 0 12px 14px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   color: #64748b;
+}
+
+.check-table-header-no-photo {
+  grid-template-columns: 1.45fr 230px 1fr;
 }
 
 .check-table {
@@ -148,40 +154,56 @@ textarea:focus {
 
 .check-row {
   display: grid;
-  grid-template-columns: 1.5fr 180px 1fr 180px;
-  gap: 12px;
+  grid-template-columns: 1.45fr 230px 1fr;
+  gap: 14px;
   align-items: center;
   background: #f8fafc;
-  padding: 16px;
+  padding: 18px;
   border-radius: 18px;
   border: 1px solid #e2e8f0;
   width: 100%;
   box-sizing: border-box;
 }
 
+.check-row-no-photo {
+  grid-template-columns: 1.45fr 230px 1fr;
+}
+
+.check-row-bad {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
 .check-name {
   display: flex;
   align-items: center;
   gap: 14px;
-  font-weight: 700;
+  font-weight: 800;
   color: #0f172a;
   min-width: 0;
 }
 
 .check-name span {
   word-break: break-word;
+  font-size: 17px;
 }
 
 .check-number {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
   background: #2563eb;
   color: white;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 900;
   flex-shrink: 0;
+}
+
+.check-row select,
+.check-row input {
+  height: 54px;
 }
 
 .status-good {
@@ -193,6 +215,8 @@ textarea:focus {
   border-color: #dc2626;
   background: #fef2f2;
 }
+
+/* FOTOS */
 
 .photo-upload,
 .general-photo-upload {
@@ -264,26 +288,7 @@ textarea {
   display: block;
 }
 
-/* ========================= */
-/* FOTOS */
-/* ========================= */
-
-.photos-section {
-  margin-top: 24px;
-}
-
-.general-upload-full {
-  justify-content: stretch;
-}
-
-.general-upload-full .general-photo-upload {
-  width: 100%;
-  min-height: 72px;
-}
-
-/* ========================= */
 /* BOTONES */
-/* ========================= */
 
 .remove-photo-button {
   position: absolute;
@@ -333,9 +338,7 @@ textarea {
   justify-content: center;
 }
 
-/* ========================= */
 /* AUTOCOMPLETE */
-/* ========================= */
 
 .vehicle-autocomplete {
   position: relative;
@@ -388,9 +391,7 @@ textarea {
   color: #64748b;
 }
 
-/* ========================= */
 /* FIRMA DIGITAL */
-/* ========================= */
 
 .signature-section {
   margin-top: 24px;
@@ -425,12 +426,6 @@ textarea {
   background: #f8fbff;
 }
 
-.signature-box-fixed {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 .signature-canvas {
   display: block;
   width: 100%;
@@ -450,6 +445,7 @@ textarea {
   gap: 12px;
   flex-wrap: wrap;
   width: 100%;
+  margin-top: 14px;
 }
 
 .signature-clear-button {
@@ -477,25 +473,75 @@ textarea {
   font-size: 14px;
 }
 
-/* ========================= */
-/* CAMPOS FIRMAS */
-/* ========================= */
-
 .signature-fields {
   margin-top: 22px;
   grid-template-columns: 1fr;
 }
 
-.signature-fields-two {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
-  margin-top: 28px;
+/* MODAL */
+
+.delete-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(6px);
 }
 
-/* ========================= */
+.delete-modal {
+  width: min(480px, 100%);
+  overflow: hidden;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.35);
+  text-align: center;
+  animation: modalPop 0.18s ease-out;
+}
+
+.success-modal-icon {
+  width: 86px;
+  height: 86px;
+  margin: 30px auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.delete-modal h3 {
+  margin: 0;
+  padding: 0 28px;
+  color: #0f172a;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.delete-modal p {
+  margin: 14px 0 30px;
+  padding: 0 34px;
+  color: #475569;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* TABLET */
-/* ========================= */
 
 @media (max-width: 1200px) {
   .vehicle-form-grid {
@@ -506,7 +552,8 @@ textarea {
     display: none;
   }
 
-  .check-row {
+  .check-row,
+  .check-row-no-photo {
     grid-template-columns: 1fr;
     align-items: stretch;
   }
@@ -516,9 +563,7 @@ textarea {
   }
 }
 
-/* ========================= */
 /* MOBILE */
-/* ========================= */
 
 @media (max-width: 768px) {
   .vehicle-check-page {
@@ -562,35 +607,60 @@ textarea {
     font-size: 20px;
   }
 
-  .check-row {
-    padding: 14px;
-    border-radius: 16px;
+  .check-table {
+    gap: 8px;
+  }
+
+  .check-row,
+  .check-row-no-photo {
+    display: block;
+    padding: 12px;
+    border-radius: 14px;
+    background: #f8fafc;
   }
 
   .check-name {
-    align-items: flex-start;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .check-number {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    font-size: 12px;
   }
 
   .check-name span {
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.25;
   }
 
-  .photo-upload,
-  .general-photo-upload {
-    width: 100%;
-    justify-content: center;
+  .check-row select {
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    border-radius: 10px;
+    height: auto;
+  }
+
+  .check-row input {
+    padding: 10px 12px;
+    font-size: 13px;
+    border-radius: 10px;
+    height: auto;
   }
 
   .general-upload-section {
     justify-content: stretch;
   }
 
-  textarea {
-    min-height: 120px;
-  }
-
+  .photo-upload,
+  .general-photo-upload,
   .vehicle-history-button,
-  .footer-save-button {
+  .footer-save-button,
+  .vehicle-save-button {
     width: 100%;
     justify-content: center;
   }
@@ -599,8 +669,8 @@ textarea {
     justify-content: stretch;
   }
 
-  .signature-fields-two {
-    grid-template-columns: 1fr;
+  textarea {
+    min-height: 120px;
   }
 
   .signature-box {
@@ -618,5 +688,154 @@ textarea {
 
   .signature-clear-button {
     width: 100%;
+  }
+
+  .delete-modal {
+    border-radius: 20px;
+  }
+
+  .delete-modal h3 {
+    font-size: 24px;
+  }
+
+  .delete-modal p {
+    font-size: 15px;
+    padding: 0 24px;
+  }
+}
+.vehicle-check-table-card {
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: white;
+}
+
+.vehicle-check-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.vehicle-check-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.vehicle-check-table th,
+.vehicle-check-table td {
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  padding: 16px 12px;
+  font-size: 14px;
+  color: #0f172a;
+  vertical-align: middle;
+}
+
+.vehicle-check-table th {
+  background: #f1f5f9;
+  font-weight: 800;
+  text-align: center;
+}
+
+.vehicle-check-table td:first-child {
+  text-align: center;
+  font-weight: 900;
+  color: #1d4ed8;
+  font-size: 18px;
+  width: 55px;
+}
+
+.vehicle-check-table td:nth-child(2) {
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.vehicle-check-table td:nth-child(3),
+.vehicle-check-table td:nth-child(4),
+.vehicle-check-table td:nth-child(5) {
+  text-align: center;
+  width: 80px;
+}
+
+.vehicle-check-table th:nth-child(6),
+.vehicle-check-table td:nth-child(6) {
+  width: 220px;
+}
+
+.vehicle-check-table input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.vehicle-check-table input[type="text"] {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 11px 12px;
+}
+
+@media (max-width: 768px) {
+  .vehicle-check-table,
+  .vehicle-check-table thead,
+  .vehicle-check-table tbody,
+  .vehicle-check-table tr,
+  .vehicle-check-table th,
+  .vehicle-check-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .vehicle-check-table thead {
+    display: none;
+  }
+
+  .vehicle-check-table tr {
+    padding: 14px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .vehicle-check-table td {
+    border: none;
+    padding: 8px 0;
+  }
+
+  .vehicle-check-table td:first-child {
+    text-align: left;
+    font-size: 13px;
+  }
+
+  .vehicle-check-table td:first-child::before {
+    content: "Ítem ";
+  }
+
+  .vehicle-check-table td:nth-child(2) {
+    font-size: 15px;
+  }
+
+  .vehicle-check-table td:nth-child(3),
+  .vehicle-check-table td:nth-child(4),
+  .vehicle-check-table td:nth-child(5) {
+    display: inline-flex;
+    width: auto;
+    align-items: center;
+    gap: 8px;
+    margin-right: 14px;
+  }
+
+  .vehicle-check-table td:nth-child(3)::before {
+    content: "Bueno";
+    font-weight: 700;
+  }
+
+  .vehicle-check-table td:nth-child(4)::before {
+    content: "Malo";
+    font-weight: 700;
+  }
+
+  .vehicle-check-table td:nth-child(5)::before {
+    content: "N/A";
+    font-weight: 700;
   }
 }

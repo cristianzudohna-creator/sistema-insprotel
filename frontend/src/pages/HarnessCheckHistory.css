@@ -1,0 +1,23 @@
+.history-header-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.history-header-buttons .history-back-button {
+  min-width: 150px;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .history-header-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .history-header-buttons .history-back-button {
+    width: 100%;
+  }
+}

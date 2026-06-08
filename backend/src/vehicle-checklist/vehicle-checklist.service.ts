@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { Response } from "express";
 import PDFDocument = require("pdfkit");
 import * as fs from "fs";
@@ -55,6 +59,56 @@ export class VehicleChecklistService {
     return "—";
   }
 
+  private isSuperadmin(user: any) {
+    return String(user?.role || "").toUpperCase() === "SUPERADMIN";
+  }
+
+  private async getLoggedUser(user: any) {
+    const userId = Number(user?.id || user?.sub || 0);
+    const email = user?.email || "";
+
+    if (userId) {
+      const found = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (found) return found;
+    }
+
+    if (email) {
+      const found = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (found) return found;
+    }
+
+    throw new ForbiddenException("Usuario no válido");
+  }
+
+  private async canAccessChecklist(id: number, user: any) {
+    const loggedUser = await this.getLoggedUser(user);
+
+    const checklist = await this.prisma.vehicleCheckList.findUnique({
+      where: { id },
+      include: {
+        items: true,
+        photos: true,
+        user: true,
+      },
+    });
+
+    if (!checklist) {
+      throw new NotFoundException("Check list no encontrado");
+    }
+
+    if (!this.isSuperadmin(loggedUser) && checklist.userId !== loggedUser.id) {
+      throw new ForbiddenException("No tienes permiso para ver este check list");
+    }
+
+    return checklist;
+  }
+
   async searchVehicles(query: string) {
     return this.prisma.vehicle.findMany({
       where: {
@@ -79,20 +133,9 @@ export class VehicleChecklistService {
     data: any,
     files: Express.Multer.File[] = [],
     driverSignature?: Express.Multer.File | null,
+    currentUser?: any,
   ) {
-    const user = await this.prisma.user.upsert({
-      where: {
-        email: "admin@insprotel.cl",
-      },
-      update: {},
-      create: {
-        name: "Administrador",
-        email: "admin@insprotel.cl",
-        password: "dev-password",
-        role: "ADMIN",
-      },
-    });
-
+    const user = await this.getLoggedUser(currentUser);
     const items = this.parseItems(data.items);
 
     const lastChecklist = await this.prisma.vehicleCheckList.findFirst({
@@ -116,7 +159,7 @@ export class VehicleChecklistService {
         maintenanceUpToDate: data.maintenanceUpToDate || null,
         vehicleType: data.vehicleType || null,
         vehicleModel: data.vehicleModel || null,
-        driverName: data.driverName || "Sin conductor",
+        driverName: data.driverName || user.name || "Sin conductor",
         supervisorName: data.supervisorName || null,
         driverSignatureUrl: driverSignature
           ? `/uploads/vehicle-checklist/${driverSignature.filename}`
@@ -153,6 +196,43 @@ export class VehicleChecklistService {
     });
   }
 
+  async findMine(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+
+    return this.prisma.vehicleCheckList.findMany({
+      where: {
+        userId: user.id,
+      },
+      include: {
+        items: true,
+        photos: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async findAllForSuperadmin(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+
+    if (!this.isSuperadmin(user)) {
+      throw new ForbiddenException("Solo SUPERADMIN puede ver todos los check list");
+    }
+
+    return this.prisma.vehicleCheckList.findMany({
+      include: {
+        items: true,
+        photos: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
   async findAll() {
     return this.prisma.vehicleCheckList.findMany({
       include: {
@@ -166,7 +246,11 @@ export class VehicleChecklistService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, currentUser?: any) {
+    if (currentUser) {
+      return this.canAccessChecklist(id, currentUser);
+    }
+
     const checklist = await this.prisma.vehicleCheckList.findUnique({
       where: { id },
       include: {
@@ -183,8 +267,8 @@ export class VehicleChecklistService {
     return checklist;
   }
 
-  async generatePdf(id: number, res: Response) {
-    const checklist = await this.findOne(id);
+  async generatePdf(id: number, res: Response, currentUser?: any) {
+    const checklist = await this.findOne(id, currentUser);
 
     const doc = new PDFDocument({
       size: "A4",
@@ -193,15 +277,18 @@ export class VehicleChecklistService {
     });
 
     const safePatent = String(checklist.patent || "sin-patente").replace(
-  /[^a-zA-Z0-9-_]/g,
-  "_",
-);
+      /[^a-zA-Z0-9-_]/g,
+      "_",
+    );
 
-const safeDriver = String(
-  checklist.driverName || "usuario",
-).replace(/[^a-zA-Z0-9-_]/g, "_");
+    const safeDriver = String(checklist.driverName || "usuario").replace(
+      /[^a-zA-Z0-9-_]/g,
+      "_",
+    );
 
-const today = new Date().toLocaleDateString("es-CL").replace(/\//g, "-");
+    const today = new Date().toLocaleDateString("es-CL").replace(/\//g, "-");
+
+    res.setHeader("Content-Type", "application/pdf");
 
 res.setHeader(
   "Content-Disposition",
@@ -365,9 +452,9 @@ res.setHeader(
     if (logoPath) {
       try {
         doc.image(logoPath, margin + 14, headerY + 6, {
-  width: 150,
-  height: 38,
-});
+          width: 150,
+          height: 38,
+        });
       } catch {
         doc
           .font("Helvetica-Bold")
@@ -384,22 +471,17 @@ res.setHeader(
     }
 
     drawCell(margin + logoW, headerY, titleW, headerH, "", {
-  bold: true,
-});
+      bold: true,
+    });
 
-doc
-  .font("Helvetica-Bold")
-  .fontSize(18)
-  .fillColor(black)
-  .text(
-    "CHECK LIST VEHÍCULOS",
-    margin + logoW,
-    headerY + 16,
-    {
-      width: titleW,
-      align: "center",
-    },
-  );
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .fillColor(black)
+      .text("CHECK LIST VEHÍCULOS", margin + logoW, headerY + 16, {
+        width: titleW,
+        align: "center",
+      });
 
     const topY = 78;
     const leftW = 260;
@@ -750,7 +832,9 @@ doc
     doc.end();
   }
 
-  async remove(id: number) {
+  async remove(id: number, currentUser?: any) {
+    const user = await this.getLoggedUser(currentUser);
+
     const checklist = await this.prisma.vehicleCheckList.findUnique({
       where: {
         id,
@@ -759,6 +843,10 @@ doc
 
     if (!checklist) {
       throw new NotFoundException("Check list no encontrado");
+    }
+
+    if (!this.isSuperadmin(user) && checklist.userId !== user.id) {
+      throw new ForbiddenException("No tienes permiso para eliminar este check list");
     }
 
     return this.prisma.vehicleCheckList.delete({

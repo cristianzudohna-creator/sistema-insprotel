@@ -2,28 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import {
-  Calendar,
-  Car,
-  Eye,
-  FileText,
-  User,
-  X,
-  Camera,
-  CheckCircle2,
-  AlertTriangle,
   ArrowLeft,
-  Trash2,
+  Calendar,
+  Eye,
   FileDown,
+  FileText,
+  Trash2,
+  User,
+  HardHat,
+  X,
 } from "lucide-react";
 
-import "./VehicleCheckHistory.css";
+import "./ToolsDriverCheckHistory.css";
 
 const API_URL = "http://localhost:3000";
 
 function getToken() {
   return (
-    localStorage.getItem("access_token") ||
     localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
     ""
   );
 }
@@ -44,10 +41,7 @@ function getUser() {
 
 function authHeaders() {
   const token = getToken();
-
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function formatDate(value) {
@@ -55,7 +49,7 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString("es-CL");
 }
 
-function VehicleCheckHistory() {
+function ToolsDriverCheckHistory() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -66,15 +60,42 @@ function VehicleCheckHistory() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
   const [recordToDelete, setRecordToDelete] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  async function loadRecords() {
+    try {
+      setLoading(true);
+
+      const endpoint = isAllHistory
+        ? `${API_URL}/tools-driver-check/all`
+        : `${API_URL}/tools-driver-check`;
+
+      const response = await fetch(endpoint, {
+        headers: authHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error cargando historial");
+      }
+
+      const data = await response.json();
+      setRecords(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      alert("Error cargando historial");
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function openPdfPreview(record) {
     if (!record?.id) return;
 
     try {
       const response = await fetch(
-        `${API_URL}/vehicle-checklist/${record.id}/pdf`,
+        `${API_URL}/tools-driver-check/${record.id}/pdf`,
         {
           headers: authHeaders(),
         },
@@ -94,32 +115,6 @@ function VehicleCheckHistory() {
     }
   }
 
-  async function loadRecords() {
-    try {
-      setLoading(true);
-
-      const endpoint = isAllHistory
-        ? `${API_URL}/vehicle-checklist/all`
-        : `${API_URL}/vehicle-checklist`;
-
-      const response = await fetch(endpoint, {
-        headers: authHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error("Error cargando historial");
-      }
-
-      const data = await response.json();
-      setRecords(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error(error);
-      alert("Error cargando historial");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function askDeleteRecord(record) {
     setRecordToDelete(record);
   }
@@ -135,7 +130,7 @@ function VehicleCheckHistory() {
       setDeletingId(recordToDelete.id);
 
       const response = await fetch(
-        `${API_URL}/vehicle-checklist/${recordToDelete.id}`,
+        `${API_URL}/tools-driver-check/${recordToDelete.id}`,
         {
           method: "DELETE",
           headers: authHeaders(),
@@ -165,8 +160,8 @@ function VehicleCheckHistory() {
 
   useEffect(() => {
     if (isAllHistory && !isSuperadmin) {
-      alert("No tienes permiso para ver todos los check list");
-      navigate("/check-vehiculos/historial");
+      alert("No tienes permiso para ver todos los check list de conductor");
+      navigate("/check-conductor/historial");
       return;
     }
 
@@ -174,28 +169,28 @@ function VehicleCheckHistory() {
   }, [isAllHistory]);
 
   return (
-    <div className="history-page">
-      <div className="history-header history-header-actions">
+    <div className="tools-history-page">
+      <div className="tools-history-header">
         <div>
           <h2>
             {isAllHistory
-              ? "Historial General Check List Vehículos"
-              : "Mis Check List Vehículos"}
+              ? "Historial General Check Conductor"
+              : "Mis Check List Conductor"}
           </h2>
 
           <p>
             {isAllHistory
-              ? "Todos los registros guardados por los usuarios."
-              : "Registros guardados de tus inspecciones vehiculares."}
+              ? "Todos los registros de conductor guardados por los usuarios."
+              : "Registros guardados de tus inspecciones de conductor."}
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="tools-history-header-buttons">
           {isSuperadmin && !isAllHistory && (
             <button
               type="button"
-              className="history-back-button"
-              onClick={() => navigate("/check-vehiculos/historial-todos")}
+              className="tools-history-back-button"
+              onClick={() => navigate("/check-conductor/historial-todos")}
             >
               <FileText size={18} />
               Ver Todos
@@ -205,8 +200,8 @@ function VehicleCheckHistory() {
           {isAllHistory && (
             <button
               type="button"
-              className="history-back-button"
-              onClick={() => navigate("/check-vehiculos/historial")}
+              className="tools-history-back-button"
+              onClick={() => navigate("/check-conductor/historial")}
             >
               <User size={18} />
               Ver Mis Check List
@@ -215,8 +210,8 @@ function VehicleCheckHistory() {
 
           <button
             type="button"
-            className="history-back-button"
-            onClick={() => navigate("/check-vehiculos")}
+            className="tools-history-back-button"
+            onClick={() => navigate("/check-conductor")}
           >
             <ArrowLeft size={18} />
             Volver al Formulario
@@ -224,27 +219,27 @@ function VehicleCheckHistory() {
         </div>
       </div>
 
-      <div className="history-card">
+      <div className="tools-history-card">
         {loading ? (
           <p>Cargando historial...</p>
         ) : records.length === 0 ? (
-          <div className="history-empty">
+          <div className="tools-history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
-            <p>Los check list guardados aparecerán aquí.</p>
+            <p>Los check list de conductor guardados aparecerán aquí.</p>
           </div>
         ) : (
-          <div className="history-list">
+          <div className="tools-history-list">
             {records.map((record) => (
-              <div className="history-row" key={record.id}>
-                <div className="history-icon">
-                  <Car size={22} />
+              <div className="tools-history-row" key={record.id}>
+                <div className="tools-history-icon">
+                  <HardHat size={22} />
                 </div>
 
-                <div className="history-info">
-                  <h3>{record.patent || "Sin patente"}</h3>
+                <div className="tools-history-info">
+                  <h3>{record.folio || "Check List Conductor"}</h3>
 
-                  <div className="history-meta">
+                  <div className="tools-history-meta">
                     <span>
                       <Calendar size={15} />
                       {formatDate(record.date)}
@@ -253,6 +248,11 @@ function VehicleCheckHistory() {
                     <span>
                       <User size={15} />
                       {record.driverName || "Sin conductor"}
+                    </span>
+
+                    <span>
+                      <HardHat size={15} />
+                      {record.supervisorInspectorName || "Sin supervisor"}
                     </span>
 
                     {isAllHistory && (
@@ -264,9 +264,9 @@ function VehicleCheckHistory() {
                   </div>
                 </div>
 
-                <div className="history-actions">
+                <div className="tools-history-actions">
                   <button
-                    className="history-action"
+                    className="tools-history-action"
                     onClick={() => setSelectedRecord(record)}
                     type="button"
                   >
@@ -275,7 +275,7 @@ function VehicleCheckHistory() {
                   </button>
 
                   <button
-                    className="history-pdf-button"
+                    className="tools-history-pdf-button"
                     onClick={() => openPdfPreview(record)}
                     type="button"
                   >
@@ -285,7 +285,7 @@ function VehicleCheckHistory() {
 
                   {(isSuperadmin || !isAllHistory) && (
                     <button
-                      className="history-delete-button"
+                      className="tools-history-delete-button"
                       onClick={() => askDeleteRecord(record)}
                       disabled={deletingId === record.id}
                       type="button"
@@ -302,19 +302,18 @@ function VehicleCheckHistory() {
       </div>
 
       {selectedRecord && (
-        <div className="detail-overlay">
-          <div className="detail-modal">
-            <div className="detail-header">
+        <div className="tools-detail-overlay">
+          <div className="tools-detail-modal">
+            <div className="tools-detail-header">
               <div>
-                <h3>Detalle Check List</h3>
+                <h3>Detalle Check List Conductor</h3>
                 <p>
-                  Patente:{" "}
-                  <strong>{selectedRecord.patent || "Sin patente"}</strong>
+                  Folio: <strong>{selectedRecord.folio || "Sin folio"}</strong>
                 </p>
               </div>
 
               <button
-                className="detail-close"
+                className="tools-detail-close"
                 onClick={() => setSelectedRecord(null)}
                 type="button"
               >
@@ -322,30 +321,44 @@ function VehicleCheckHistory() {
               </button>
             </div>
 
-            <div className="detail-grid">
+            <div className="tools-detail-grid">
               <div>
                 <span>Fecha</span>
                 <strong>{formatDate(selectedRecord.date)}</strong>
               </div>
 
               <div>
+                <span>Contrato</span>
+                <strong>{selectedRecord.contract || "—"}</strong>
+              </div>
+
+              <div>
                 <span>Conductor</span>
-                <strong>{selectedRecord.driverName || "Sin conductor"}</strong>
+                <strong>{selectedRecord.driverName || "—"}</strong>
               </div>
 
               <div>
-                <span>Kilometraje</span>
-                <strong>{selectedRecord.mileage || 0}</strong>
+                <span>Móvil</span>
+                <strong>{selectedRecord.mobile || "—"}</strong>
               </div>
 
               <div>
-                <span>Tipo Vehículo</span>
-                <strong>{selectedRecord.vehicleType || "—"}</strong>
+                <span>Vigencia Examen Altura</span>
+                <strong>
+                  {selectedRecord.heightExamExpiration
+                    ? formatDate(selectedRecord.heightExamExpiration)
+                    : "—"}
+                </strong>
               </div>
 
               <div>
-                <span>Modelo</span>
-                <strong>{selectedRecord.vehicleModel || "—"}</strong>
+                <span>Supervisor / Inspector</span>
+                <strong>{selectedRecord.supervisorInspectorName || "—"}</strong>
+              </div>
+
+              <div>
+                <span>Zona</span>
+                <strong>{selectedRecord.zone || "—"}</strong>
               </div>
 
               {isAllHistory && (
@@ -356,72 +369,54 @@ function VehicleCheckHistory() {
               )}
             </div>
 
-            <div className="detail-section">
-              <h4>Chequeo General</h4>
+            <div className="tools-detail-section">
+              <h4>Estado de Conductor y Equipamiento</h4>
 
-              <div className="detail-items">
+              <div className="tools-detail-items">
                 {selectedRecord.items?.length > 0 ? (
-                  selectedRecord.items.map((item) => (
+                  selectedRecord.items.map((item, index) => (
                     <div
-                      className={`detail-item ${
+                      className={`tools-detail-item ${
                         item.status === "MALO" ? "bad" : ""
                       }`}
-                      key={item.id}
+                      key={item.id || index}
                     >
                       <div>
-                        {item.status === "MALO" ? (
-                          <AlertTriangle size={18} />
-                        ) : (
-                          <CheckCircle2 size={18} />
-                        )}
-
-                        <strong>{item.itemName}</strong>
+                        <HardHat size={18} />
+                        <strong>
+                          {item.number || index + 1}. {item.name}
+                        </strong>
                       </div>
 
                       <span>{item.status || "Sin estado"}</span>
+
+                      <p>
+                        <strong>Cantidad:</strong> {item.quantity || "—"}
+                      </p>
 
                       <p>{item.observation || "Sin observación"}</p>
                     </div>
                   ))
                 ) : (
-                  <p className="detail-observation">Sin ítems registrados.</p>
+                  <p className="tools-detail-observation">
+                    Sin ítems registrados.
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="detail-section">
+            <div className="tools-detail-section">
               <h4>Observaciones Generales</h4>
 
-              <p className="detail-observation">
+              <p className="tools-detail-observation">
                 {selectedRecord.generalObservation || "Sin observaciones"}
               </p>
             </div>
 
-            <div className="detail-section">
-              <h4>
-                <Camera size={18} />
-                Fotos del Desperfecto
-              </h4>
-
-              {selectedRecord.photos?.length > 0 ? (
-                <div className="detail-photo-grid">
-                  {selectedRecord.photos.map((photo) => (
-                    <img
-                      key={photo.id}
-                      src={`${API_URL}${photo.imageUrl}`}
-                      alt="desperfecto"
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="detail-observation">Sin fotos adjuntas.</p>
-              )}
-            </div>
-
-            <div className="detail-footer-actions">
+            <div className="tools-detail-footer-actions">
               <button
                 type="button"
-                className="history-pdf-button detail-pdf-button"
+                className="tools-history-pdf-button"
                 onClick={() => openPdfPreview(selectedRecord)}
               >
                 <FileDown size={17} />
@@ -431,7 +426,7 @@ function VehicleCheckHistory() {
               {(isSuperadmin || !isAllHistory) && (
                 <button
                   type="button"
-                  className="history-delete-button detail-delete-button"
+                  className="tools-history-delete-button"
                   onClick={() => askDeleteRecord(selectedRecord)}
                   disabled={deletingId === selectedRecord.id}
                 >
@@ -447,25 +442,27 @@ function VehicleCheckHistory() {
       )}
 
       {recordToDelete && (
-        <div className="delete-modal-overlay">
-          <div className="delete-modal">
-            <div className="delete-modal-icon">
+        <div className="tools-delete-modal-overlay">
+          <div className="tools-delete-modal">
+            <div className="tools-delete-modal-icon">
               <Trash2 size={38} />
             </div>
 
             <h3>¿Eliminar check list?</h3>
 
             <p>
-              Estás a punto de eliminar el check list de la patente{" "}
-              <strong>“{recordToDelete.patent || "Sin patente"}”</strong>.
+              Estás a punto de eliminar el check list{" "}
+              <strong>“{recordToDelete.folio || "Sin folio"}”</strong>.
             </p>
 
-            <p className="delete-warning">Esta acción no se puede deshacer.</p>
+            <p className="tools-delete-warning">
+              Esta acción no se puede deshacer.
+            </p>
 
-            <div className="delete-modal-actions">
+            <div className="tools-delete-modal-actions">
               <button
                 type="button"
-                className="delete-cancel-button"
+                className="tools-delete-cancel-button"
                 onClick={cancelDelete}
                 disabled={deletingId === recordToDelete.id}
               >
@@ -474,12 +471,14 @@ function VehicleCheckHistory() {
 
               <button
                 type="button"
-                className="delete-confirm-button"
+                className="tools-delete-confirm-button"
                 onClick={confirmDeleteRecord}
                 disabled={deletingId === recordToDelete.id}
               >
                 <Trash2 size={18} />
-                {deletingId === recordToDelete.id ? "Eliminando..." : "Eliminar"}
+                {deletingId === recordToDelete.id
+                  ? "Eliminando..."
+                  : "Eliminar"}
               </button>
             </div>
           </div>
@@ -489,4 +488,4 @@ function VehicleCheckHistory() {
   );
 }
 
-export default VehicleCheckHistory;
+export default ToolsDriverCheckHistory;

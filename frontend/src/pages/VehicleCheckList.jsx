@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   PenLine,
   RotateCcw,
+  Check,
 } from "lucide-react";
 
 import "./VehicleCheckList.css";
@@ -30,27 +31,52 @@ function generateVisualFolio() {
   return `CL-${year}-${value}`;
 }
 
-function getLoggedUserName() {
+function getToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
+    ""
+  );
+}
+
+function getLoggedUser() {
   try {
     const raw =
       localStorage.getItem("user") ||
       localStorage.getItem("me") ||
       localStorage.getItem("profile");
 
-    if (!raw) return "Usuario logueado";
+    if (!raw) return null;
 
-    const user = JSON.parse(raw);
-
-    return (
-      user.name ||
-      user.fullName ||
-      user.nombre ||
-      user.displayName ||
-      "Usuario logueado"
-    );
+    return JSON.parse(raw);
   } catch {
-    return "Usuario logueado";
+    return null;
   }
+}
+
+function getLoggedUserName() {
+  const user = getLoggedUser();
+
+  return (
+    user?.name ||
+    user?.fullName ||
+    user?.nombre ||
+    user?.displayName ||
+    "Usuario logueado"
+  );
+}
+
+function getSignatureRoleLabel() {
+  const user = getLoggedUser();
+  const role = String(user?.role || "").toUpperCase();
+
+  if (role === "CONDUCTOR") return "Conductor";
+  if (role === "SUPERVISOR") return "Supervisor";
+  if (role === "PREVENCION") return "Prevencionista";
+  if (role === "ADMIN") return "Administrador";
+  if (role === "SUPERADMIN") return "Superadministrador";
+
+  return "Usuario";
 }
 
 function dataUrlToFile(dataUrl, filename) {
@@ -105,6 +131,7 @@ function getCroppedSignatureDataUrl(canvas) {
   }
 
   const padding = 28;
+
   minX = Math.max(0, minX - padding);
   minY = Math.max(0, minY - padding);
   maxX = Math.min(width, maxX + padding);
@@ -114,12 +141,15 @@ function getCroppedSignatureDataUrl(canvas) {
   const cropHeight = maxY - minY;
 
   const croppedCanvas = document.createElement("canvas");
+
   croppedCanvas.width = cropWidth;
   croppedCanvas.height = cropHeight;
 
   const croppedCtx = croppedCanvas.getContext("2d");
+
   croppedCtx.fillStyle = "#ffffff";
   croppedCtx.fillRect(0, 0, cropWidth, cropHeight);
+
   croppedCtx.drawImage(
     canvas,
     minX,
@@ -189,18 +219,21 @@ function getAutomaticStatus(checks) {
 
   if (hasBad) return "OBSERVADO";
   if (allCompleted) return "COMPLETADO";
+
   return "PENDIENTE";
 }
 
 function VehicleCheckList() {
   const navigate = useNavigate();
   const loggedUserName = getLoggedUserName();
+  const signatureRoleLabel = getSignatureRoleLabel();
 
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const [form, setForm] = useState({
     ...INITIAL_FORM,
@@ -214,14 +247,6 @@ function VehicleCheckList() {
   const [vehicleOptions, setVehicleOptions] = useState([]);
   const [showVehicleOptions, setShowVehicleOptions] = useState(false);
   const [searchingVehicles, setSearchingVehicles] = useState(false);
-
-  const goodChecksCount = useMemo(() => {
-    return checks.filter((item) => item.status === "BUENO").length;
-  }, [checks]);
-
-  const badChecksCount = useMemo(() => {
-    return checks.filter((item) => item.status === "MALO").length;
-  }, [checks]);
 
   const automaticStatus = useMemo(() => {
     return getAutomaticStatus(checks);
@@ -253,6 +278,11 @@ function VehicleCheckList() {
           `${API_URL}/vehicle-checklist/vehicles/search?q=${encodeURIComponent(
             query,
           )}`,
+          {
+            headers: {
+              Authorization: `Bearer ${getToken()}`,
+            },
+          },
         );
 
         const data = await response.json();
@@ -272,13 +302,13 @@ function VehicleCheckList() {
 
   function prepareCanvas() {
     const canvas = canvasRef.current;
+
     if (!canvas) return;
 
     const parent = canvas.parentElement;
     const width = parent?.clientWidth || 600;
     const height = window.innerWidth <= 768 ? 180 : 220;
     const ratio = window.devicePixelRatio || 1;
-
     const previous = hasSignature ? canvas.toDataURL("image/png") : null;
 
     canvas.width = width * ratio;
@@ -287,6 +317,7 @@ function VehicleCheckList() {
     canvas.style.height = `${height}px`;
 
     const ctx = canvas.getContext("2d");
+
     ctx.scale(ratio, ratio);
     ctx.lineWidth = 2.4;
     ctx.lineCap = "round";
@@ -297,9 +328,11 @@ function VehicleCheckList() {
 
     if (previous) {
       const img = new Image();
+
       img.onload = () => {
         ctx.drawImage(img, 0, 0, width, height);
       };
+
       img.src = previous;
     }
   }
@@ -323,6 +356,7 @@ function VehicleCheckList() {
     const point = getCanvasPoint(event);
 
     drawingRef.current = true;
+
     ctx.beginPath();
     ctx.moveTo(point.x, point.y);
   }
@@ -338,6 +372,7 @@ function VehicleCheckList() {
 
     ctx.lineTo(point.x, point.y);
     ctx.stroke();
+
     setHasSignature(true);
   }
 
@@ -347,12 +382,14 @@ function VehicleCheckList() {
 
   function clearSignature() {
     const canvas = canvasRef.current;
+
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
     const rect = canvas.getBoundingClientRect();
 
     ctx.clearRect(0, 0, rect.width, rect.height);
+
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
@@ -377,6 +414,7 @@ function VehicleCheckList() {
     setGeneralPhotos([]);
     setVehicleOptions([]);
     setShowVehicleOptions(false);
+
     clearSignature();
   }
 
@@ -459,12 +497,13 @@ function VehicleCheckList() {
       setLoading(true);
 
       const formData = new FormData();
+
       const canvas = canvasRef.current;
       const croppedSignatureDataUrl = getCroppedSignatureDataUrl(canvas);
 
       const signatureFile = dataUrlToFile(
         croppedSignatureDataUrl,
-        "firma-conductor.png",
+        "firma-usuario.png",
       );
 
       formData.append("checklistNumber", form.checklistNumber);
@@ -505,6 +544,9 @@ function VehicleCheckList() {
 
       const response = await fetch(`${API_URL}/vehicle-checklist`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
         body: formData,
       });
 
@@ -514,15 +556,27 @@ function VehicleCheckList() {
 
       await response.json();
 
-      alert("Checklist guardado correctamente ✅");
-      resetForm();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setSuccessModalOpen(true);
+
+      setTimeout(() => {
+        closeSuccessModal();
+      }, 1700);
     } catch (error) {
       console.error(error);
       alert("Error guardando checklist ❌");
     } finally {
       setLoading(false);
     }
+  }
+
+  function closeSuccessModal() {
+    setSuccessModalOpen(false);
+    resetForm();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   return (
@@ -591,6 +645,7 @@ function VehicleCheckList() {
                       onMouseDown={() => selectVehicle(vehicle)}
                     >
                       <strong>{vehicle.patent}</strong>
+
                       <span>
                         {vehicle.vehicleModel || "Sin modelo"} ·{" "}
                         {vehicle.vehicleType || "Sin tipo"}
@@ -688,52 +743,74 @@ function VehicleCheckList() {
           <h3>Chequeo General</h3>
         </div>
 
-        <div className="check-table-header check-table-header-no-photo">
-          <span>Elemento</span>
-          <span>Estado</span>
-          <span>Observación</span>
-        </div>
+        <div className="vehicle-check-table-card">
+          <div className="vehicle-check-table-scroll">
+            <table className="vehicle-check-table">
+              <thead>
+                <tr>
+                  <th>N°</th>
+                  <th>Elemento a revisar</th>
+                  <th>Bueno</th>
+                  <th>Malo</th>
+                  <th>No Aplica</th>
+                  <th>Observación</th>
+                </tr>
+              </thead>
 
-        <div className="check-table">
-          {checks.map((check, index) => (
-            <div
-              className={`check-row check-row-no-photo ${
-                check.status === "MALO" ? "check-row-bad" : ""
-              }`}
-              key={check.item}
-            >
-              <div className="check-name">
-                <div className="check-number">{index + 1}</div>
-                <span>{check.item}</span>
-              </div>
+              <tbody>
+                {checks.map((check, index) => (
+                  <tr
+                    key={check.item}
+                    className={check.status === "MALO" ? "check-row-bad" : ""}
+                  >
+                    <td>{index + 1}</td>
 
-              <select
-                value={check.status}
-                onChange={(e) => updateCheck(index, "status", e.target.value)}
-                className={
-                  check.status === "BUENO"
-                    ? "status-good"
-                    : check.status === "MALO"
-                    ? "status-bad"
-                    : ""
-                }
-              >
-                <option value="">Seleccionar</option>
-                <option value="BUENO">Bueno</option>
-                <option value="MALO">Malo</option>
-                <option value="NO_APLICA">No aplica</option>
-              </select>
+                    <td>{check.item}</td>
 
-              <input
-                type="text"
-                placeholder="Ingrese observación"
-                value={check.observation}
-                onChange={(e) =>
-                  updateCheck(index, "observation", e.target.value)
-                }
-              />
-            </div>
-          ))}
+                    <td>
+                      <input
+                        type="radio"
+                        name={`vehicle-check-${index}`}
+                        checked={check.status === "BUENO"}
+                        onChange={() => updateCheck(index, "status", "BUENO")}
+                      />
+                    </td>
+
+                    <td>
+                      <input
+                        type="radio"
+                        name={`vehicle-check-${index}`}
+                        checked={check.status === "MALO"}
+                        onChange={() => updateCheck(index, "status", "MALO")}
+                      />
+                    </td>
+
+                    <td>
+                      <input
+                        type="radio"
+                        name={`vehicle-check-${index}`}
+                        checked={check.status === "NO_APLICA"}
+                        onChange={() =>
+                          updateCheck(index, "status", "NO_APLICA")
+                        }
+                      />
+                    </td>
+
+                    <td>
+                      <input
+                        type="text"
+                        placeholder="Ingrese observación"
+                        value={check.observation}
+                        onChange={(e) =>
+                          updateCheck(index, "observation", e.target.value)
+                        }
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -797,7 +874,7 @@ function VehicleCheckList() {
         <div className="signature-section">
           <div className="signature-title">
             <PenLine size={18} />
-            Firma del Conductor
+            Firma del {signatureRoleLabel}
           </div>
 
           <div className="signature-box">
@@ -842,6 +919,20 @@ function VehicleCheckList() {
           {loading ? "Guardando..." : "Guardar Check List"}
         </button>
       </div>
+
+      {successModalOpen && (
+        <div className="delete-modal-overlay">
+          <div className="delete-modal success-clean-modal">
+            <div className="success-modal-icon">
+              <Check size={34} />
+            </div>
+
+            <h3>Checklist guardado</h3>
+
+            <p>El check list del vehículo fue creado correctamente.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

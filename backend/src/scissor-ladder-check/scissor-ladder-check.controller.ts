@@ -5,50 +5,50 @@ import {
   Get,
   Param,
   Post,
-  Query,
   Req,
   Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
+
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
-import type { Request, Response } from "express";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+
+import type { Response } from "express";
+
 import { diskStorage } from "multer";
+
 import * as fs from "fs";
 import * as path from "path";
 
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { VehicleChecklistService } from "./vehicle-checklist.service";
+import { ScissorLadderCheckService } from "./scissor-ladder-check.service";
 
-const uploadDir = path.join(process.cwd(), "uploads", "vehicle-checklist");
+const uploadDir = path.join(process.cwd(), "uploads", "scissor-ladder-check");
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-@Controller("vehicle-checklist")
+@Controller("scissor-ladder-check")
 @UseGuards(JwtAuthGuard)
-export class VehicleChecklistController {
+export class ScissorLadderCheckController {
   constructor(
-    private readonly vehicleChecklistService: VehicleChecklistService,
+    private readonly scissorLadderCheckService: ScissorLadderCheckService,
   ) {}
-
-  @Get("vehicles/search")
-  async searchVehicles(@Query("q") q: string) {
-    return this.vehicleChecklistService.searchVehicles(q || "");
-  }
 
   @Post()
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: "photos", maxCount: 10 },
-        { name: "driverSignature", maxCount: 1 },
+        { name: "photos", maxCount: 2 },
+        { name: "technicianSignature", maxCount: 1 },
+        { name: "inspectorSignature", maxCount: 1 },
       ],
       {
         storage: diskStorage({
           destination: uploadDir,
+
           filename: (_req, file, callback) => {
             const uniqueName = `${Date.now()}-${Math.round(
               Math.random() * 1e9,
@@ -57,6 +57,7 @@ export class VehicleChecklistController {
             callback(null, uniqueName);
           },
         }),
+
         fileFilter: (_req, file, callback) => {
           if (!file.mimetype.startsWith("image/")) {
             return callback(new Error("Solo se permiten imágenes"), false);
@@ -64,53 +65,63 @@ export class VehicleChecklistController {
 
           callback(null, true);
         },
+
         limits: {
-          files: 11,
+          files: 4,
           fileSize: 10 * 1024 * 1024,
         },
       },
     ),
   )
   async create(
-    @Req() req: Request,
+    @Req() req: any,
     @Body() body: any,
     @UploadedFiles()
     files: {
       photos?: Express.Multer.File[];
-      driverSignature?: Express.Multer.File[];
+      technicianSignature?: Express.Multer.File[];
+      inspectorSignature?: Express.Multer.File[];
     },
   ) {
-    return this.vehicleChecklistService.create(
+    return this.scissorLadderCheckService.create(
+      req.user,
       body,
       files?.photos || [],
-      files?.driverSignature?.[0] || null,
-      req.user,
+      files?.technicianSignature?.[0] || null,
+      files?.inspectorSignature?.[0] || null,
     );
   }
 
-  // Historial normal: cada usuario ve solo sus checklist
   @Get()
-  async findMine(@Req() req: Request) {
-    return this.vehicleChecklistService.findMine(req.user);
+  async findAll(@Req() req: any) {
+    return this.scissorLadderCheckService.findAll(req.user);
   }
 
-  // Historial general: solo SUPERADMIN verá todos
   @Get("all")
-  async findAllForSuperadmin(@Req() req: Request) {
-    return this.vehicleChecklistService.findAllForSuperadmin(req.user);
+  async findAllAdmin(@Req() req: any) {
+    return this.scissorLadderCheckService.findAllAdmin(req.user);
+  }
+
+  @Get(":id")
+  async findOne(@Req() req: any, @Param("id") id: string) {
+    return this.scissorLadderCheckService.findOne(req.user, Number(id));
   }
 
   @Get(":id/pdf")
   async previewPdf(
-    @Req() req: Request,
+    @Req() req: any,
     @Param("id") id: string,
     @Res() res: Response,
   ) {
-    return this.vehicleChecklistService.generatePdf(Number(id), res, req.user);
+    return this.scissorLadderCheckService.generatePdf(
+      req.user,
+      Number(id),
+      res,
+    );
   }
 
   @Delete(":id")
-  async remove(@Req() req: Request, @Param("id") id: string) {
-    return this.vehicleChecklistService.remove(Number(id), req.user);
+  async remove(@Req() req: any, @Param("id") id: string) {
+    return this.scissorLadderCheckService.remove(req.user, Number(id));
   }
 }

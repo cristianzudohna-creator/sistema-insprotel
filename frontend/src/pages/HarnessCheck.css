@@ -1,0 +1,465 @@
+.harness-page {
+  padding: 24px;
+  background: #f3f4f6;
+  min-height: 100vh;
+}
+
+.harness-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.harness-header h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.harness-header p {
+  margin-top: 6px;
+  color: #6b7280;
+}
+
+.harness-history-btn {
+  border: 1px solid #2563eb;
+  background: white;
+  color: #2563eb;
+  border-radius: 16px;
+  padding: 14px 20px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: 0.2s;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.12);
+}
+
+.harness-history-btn:hover {
+  background: #2563eb;
+  color: white;
+}
+
+.harness-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.harness-card {
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+}
+
+.harness-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.harness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s;
+  background: white;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+/* ========================= */
+/* TABLA */
+/* ========================= */
+
+.harness-check-table-card {
+  border: 1px solid #dbe3f0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: white;
+}
+
+.harness-check-table-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid #dbe3f0;
+  background: #f8fafc;
+}
+
+.harness-check-table-title h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+}
+
+.harness-check-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.harness-check-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.harness-check-table th,
+.harness-check-table td {
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  padding: 12px;
+  font-size: 14px;
+  color: #0f172a;
+  vertical-align: middle;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.harness-check-table th {
+  background: #f1f5f9;
+  font-weight: 800;
+  text-align: center;
+}
+
+.harness-check-table td:first-child {
+  text-align: center;
+  font-weight: 800;
+  width: 50px;
+  color: #1d4ed8;
+  font-size: 18px;
+}
+
+.harness-check-table td:nth-child(2) {
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.harness-check-table td:nth-child(3),
+.harness-check-table td:nth-child(4),
+.harness-check-table td:nth-child(5) {
+  text-align: center;
+  width: 70px;
+}
+
+.harness-check-table th:nth-child(6),
+.harness-check-table td:nth-child(6) {
+  width: 220px;
+}
+
+.harness-check-table input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.harness-check-table input[type="text"] {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 11px 12px;
+  outline: none;
+  font-size: 14px;
+}
+
+.harness-check-table input[type="text"]:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* ========================= */
+/* FIRMAS */
+/* ========================= */
+
+.harness-signature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.harness-signature-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 18px;
+  background: #fafafa;
+}
+
+.harness-signature-box h3 {
+  margin: 0 0 14px;
+  color: #111827;
+}
+
+.harness-signature-canvas {
+  width: 100%;
+  height: 180px;
+  background: white;
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  touch-action: none;
+}
+
+.signature-clear-button {
+  margin-top: 14px;
+  border: none;
+  border-radius: 14px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-weight: 800;
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.signature-clear-button:hover {
+  background: #fecaca;
+}
+
+/* ========================= */
+/* BOTON */
+/* ========================= */
+
+.harness-submit-btn {
+  height: 58px;
+  border: none;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.25s;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.25);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.harness-submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 35px rgba(37, 99, 235, 0.32);
+}
+
+.harness-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ========================= */
+/* MODAL */
+/* ========================= */
+
+.success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 5000;
+  padding: 20px;
+}
+
+.success-modal {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 28px;
+  padding: 30px 24px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
+}
+
+.success-modal-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 999px;
+  margin: 0 auto 18px;
+  background: #dcfce7;
+  color: #16a34a;
+  display: grid;
+  place-items: center;
+}
+
+.success-modal h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 24px;
+}
+
+.success-modal p {
+  margin-top: 10px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.success-modal-button {
+  margin-top: 22px;
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  background: #2563eb;
+  color: white;
+  font-weight: 800;
+  padding: 15px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.success-modal-button:hover {
+  background: #1d4ed8;
+}
+
+/* ========================= */
+/* MOBILE */
+/* ========================= */
+
+@media (max-width: 768px) {
+  .harness-page {
+    padding: 14px;
+  }
+
+  .harness-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .harness-history-btn {
+    justify-content: center;
+  }
+
+  .harness-header h1 {
+    font-size: 28px;
+  }
+
+  .harness-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .harness-signature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .harness-check-table-scroll {
+    overflow-x: visible;
+  }
+
+  .harness-check-table,
+  .harness-check-table thead,
+  .harness-check-table tbody,
+  .harness-check-table tr,
+  .harness-check-table th,
+  .harness-check-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .harness-check-table thead {
+    display: none;
+  }
+
+  .harness-check-table tr {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px;
+    background: white;
+  }
+
+  .harness-check-table td {
+    border: none;
+    padding: 8px 0;
+  }
+
+  .harness-check-table td:first-child {
+    text-align: left;
+    font-size: 13px;
+    color: #2563eb;
+  }
+
+  .harness-check-table td:first-child::before {
+    content: "Ítem ";
+  }
+
+  .harness-check-table td:nth-child(2) {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.4;
+  }
+
+  .harness-check-table td:nth-child(3),
+  .harness-check-table td:nth-child(4),
+  .harness-check-table td:nth-child(5) {
+    display: inline-flex;
+    width: auto;
+    align-items: center;
+    gap: 8px;
+    margin-right: 14px;
+  }
+
+  .harness-check-table td:nth-child(3)::before {
+    content: "Bueno";
+    font-weight: 700;
+  }
+
+  .harness-check-table td:nth-child(4)::before {
+    content: "Malo";
+    font-weight: 700;
+  }
+
+  .harness-check-table td:nth-child(5)::before {
+    content: "N/A";
+    font-weight: 700;
+  }
+
+  .harness-check-table td:nth-child(6) {
+    margin-top: 8px;
+  }
+
+  .harness-check-table input[type="text"] {
+    width: 100%;
+  }
+}

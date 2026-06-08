@@ -5,7 +5,6 @@ import {
   Get,
   Param,
   Post,
-  Query,
   Req,
   Res,
   UploadedFiles,
@@ -13,38 +12,31 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import { diskStorage } from "multer";
 import * as fs from "fs";
 import * as path from "path";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { VehicleChecklistService } from "./vehicle-checklist.service";
+import { HarnessCheckService } from "./harness-check.service";
 
-const uploadDir = path.join(process.cwd(), "uploads", "vehicle-checklist");
+const uploadDir = path.join(process.cwd(), "uploads", "harness-check");
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-@Controller("vehicle-checklist")
+@Controller("harness-check")
 @UseGuards(JwtAuthGuard)
-export class VehicleChecklistController {
-  constructor(
-    private readonly vehicleChecklistService: VehicleChecklistService,
-  ) {}
-
-  @Get("vehicles/search")
-  async searchVehicles(@Query("q") q: string) {
-    return this.vehicleChecklistService.searchVehicles(q || "");
-  }
+export class HarnessCheckController {
+  constructor(private readonly harnessCheckService: HarnessCheckService) {}
 
   @Post()
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: "photos", maxCount: 10 },
-        { name: "driverSignature", maxCount: 1 },
+        { name: "technicianSignature", maxCount: 1 },
+        { name: "supervisorSignature", maxCount: 1 },
       ],
       {
         storage: diskStorage({
@@ -65,52 +57,55 @@ export class VehicleChecklistController {
           callback(null, true);
         },
         limits: {
-          files: 11,
+          files: 2,
           fileSize: 10 * 1024 * 1024,
         },
       },
     ),
   )
   async create(
-    @Req() req: Request,
+    @Req() req: any,
     @Body() body: any,
     @UploadedFiles()
     files: {
-      photos?: Express.Multer.File[];
-      driverSignature?: Express.Multer.File[];
+      technicianSignature?: Express.Multer.File[];
+      supervisorSignature?: Express.Multer.File[];
     },
   ) {
-    return this.vehicleChecklistService.create(
-      body,
-      files?.photos || [],
-      files?.driverSignature?.[0] || null,
+    return this.harnessCheckService.create(
       req.user,
+      body,
+      files?.technicianSignature?.[0] || null,
+      files?.supervisorSignature?.[0] || null,
     );
   }
 
-  // Historial normal: cada usuario ve solo sus checklist
   @Get()
-  async findMine(@Req() req: Request) {
-    return this.vehicleChecklistService.findMine(req.user);
+  async findMine(@Req() req: any) {
+    return this.harnessCheckService.findMine(req.user);
   }
 
-  // Historial general: solo SUPERADMIN verá todos
   @Get("all")
-  async findAllForSuperadmin(@Req() req: Request) {
-    return this.vehicleChecklistService.findAllForSuperadmin(req.user);
+  async findAllForSuperadmin(@Req() req: any) {
+    return this.harnessCheckService.findAllForSuperadmin(req.user);
+  }
+
+  @Get(":id")
+  async findOne(@Req() req: any, @Param("id") id: string) {
+    return this.harnessCheckService.findOne(req.user, Number(id));
   }
 
   @Get(":id/pdf")
   async previewPdf(
-    @Req() req: Request,
+    @Req() req: any,
     @Param("id") id: string,
     @Res() res: Response,
   ) {
-    return this.vehicleChecklistService.generatePdf(Number(id), res, req.user);
+    return this.harnessCheckService.generatePdf(req.user, Number(id), res);
   }
 
   @Delete(":id")
-  async remove(@Req() req: Request, @Param("id") id: string) {
-    return this.vehicleChecklistService.remove(Number(id), req.user);
+  async remove(@Req() req: any, @Param("id") id: string) {
+    return this.harnessCheckService.remove(req.user, Number(id));
   }
 }

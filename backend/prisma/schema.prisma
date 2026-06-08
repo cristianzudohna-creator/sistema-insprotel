@@ -26,6 +26,66 @@ enum CheckItemStatus {
   NO_APLICA
 }
 
+enum HarnessCheckStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum HarnessItemStatus {
+  SI
+  NO
+  NO_APLICA
+}
+
+enum LadderCheckStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum LadderItemStatus {
+  BUENO
+  MALO
+  NO_APLICA
+}
+
+enum ScissorLadderCheckStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum ScissorLadderItemStatus {
+  BUENO
+  MALO
+  NO_APLICA
+}
+
+enum ToolsEppCheckStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum ToolsEppItemStatus {
+  BUENO
+  MALO
+  NO_APLICA
+}
+
+enum ToolsDriverCheckStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum ToolsDriverItemStatus {
+  BUENO
+  MALO
+  NO_APLICA
+}
+
 model User {
   id       Int     @id @default(autoincrement())
   rut      String? @unique
@@ -40,7 +100,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vehicleChecks VehicleCheckList[]
+  vehicleChecks       VehicleCheckList[]
+  safetyTalks         SafetyTalk[]
+  harnessChecks       HarnessCheck[]
+  ladderChecks        LadderCheck[]
+  scissorLadderChecks ScissorLadderCheck[]
+  toolsEppChecks      ToolsEppCheck[]
+  toolsDriverChecks   ToolsDriverCheck[]
 }
 
 model Vehicle {
@@ -61,8 +127,7 @@ model VehicleCheckList {
   id Int @id @default(autoincrement())
 
   folio String?
-
-  date DateTime
+  date  DateTime
 
   patent              String
   mileage             Int?
@@ -119,4 +184,295 @@ model VehicleCheckPhoto {
 
   vehicleCheckListId Int
   vehicleCheckList   VehicleCheckList @relation(fields: [vehicleCheckListId], references: [id], onDelete: Cascade)
+}
+
+model SafetyTalk {
+  id Int @id @default(autoincrement())
+
+  folio String?
+  date  DateTime @default(now())
+
+  sectionOrWork        String?
+  reporterName         String
+  reporterRut          String?
+  reporterSignatureUrl String?
+
+  type String
+
+  topicTitle   String
+  topicDetails String?
+
+  observations String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  participants SafetyTalkParticipant[]
+  photos       SafetyTalkPhoto[]
+}
+
+model SafetyTalkParticipant {
+  id Int @id @default(autoincrement())
+
+  name         String
+  rut          String?
+  position     String?
+  signatureUrl String?
+
+  createdAt DateTime @default(now())
+
+  safetyTalkId Int
+  safetyTalk   SafetyTalk @relation(fields: [safetyTalkId], references: [id], onDelete: Cascade)
+}
+
+model SafetyTalkPhoto {
+  id Int @id @default(autoincrement())
+
+  imageUrl String
+
+  createdAt DateTime @default(now())
+
+  safetyTalkId Int
+  safetyTalk   SafetyTalk @relation(fields: [safetyTalkId], references: [id], onDelete: Cascade)
+}
+
+model HarnessCheck {
+  id Int @id @default(autoincrement())
+
+  folio String?
+  date  DateTime @default(now())
+
+  contract                String?
+  technicianName          String?
+  mobile                  String?
+  supervisorInspectorName String?
+  zone                    String?
+
+  technicianSignatureUrl String?
+  supervisorSignatureUrl String?
+
+  status HarnessCheckStatus @default(PENDIENTE)
+
+  generalObservation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  items HarnessCheckItem[]
+}
+
+model HarnessCheckItem {
+  id Int @id @default(autoincrement())
+
+  description String
+  status      HarnessItemStatus?
+  observation String?
+
+  createdAt DateTime @default(now())
+
+  harnessCheckId Int
+  harnessCheck   HarnessCheck @relation(fields: [harnessCheckId], references: [id], onDelete: Cascade)
+}
+
+model LadderCheck {
+  id Int @id @default(autoincrement())
+
+  folio String?
+  date  DateTime @default(now())
+
+  contract       String?
+  technicianName String?
+  mobile         String?
+  inspectorName  String?
+  zone           String?
+
+  technicianSignatureUrl String?
+  inspectorSignatureUrl  String?
+
+  status LadderCheckStatus @default(PENDIENTE)
+
+  generalObservation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  items  LadderCheckItem[]
+  photos LadderCheckPhoto[]
+}
+
+model LadderCheckItem {
+  id Int @id @default(autoincrement())
+
+  section     String
+  description String
+  status      LadderItemStatus?
+  observation String?
+
+  createdAt DateTime @default(now())
+
+  ladderCheckId Int
+  ladderCheck   LadderCheck @relation(fields: [ladderCheckId], references: [id], onDelete: Cascade)
+}
+
+model LadderCheckPhoto {
+  id Int @id @default(autoincrement())
+
+  imageUrl String
+
+  createdAt DateTime @default(now())
+
+  ladderCheckId Int
+  ladderCheck   LadderCheck @relation(fields: [ladderCheckId], references: [id], onDelete: Cascade)
+}
+
+model ScissorLadderCheck {
+  id Int @id @default(autoincrement())
+
+  folio String?
+  date  DateTime @default(now())
+
+  contract       String?
+  technicianName String?
+  mobile         String?
+  inspectorName  String?
+  zone           String?
+
+  technicianSignatureUrl String?
+  inspectorSignatureUrl  String?
+
+  status ScissorLadderCheckStatus @default(PENDIENTE)
+
+  generalObservation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  items  ScissorLadderCheckItem[]
+  photos ScissorLadderCheckPhoto[]
+}
+
+model ScissorLadderCheckItem {
+  id Int @id @default(autoincrement())
+
+  section     String
+  description String
+  status      ScissorLadderItemStatus?
+  observation String?
+
+  createdAt DateTime @default(now())
+
+  scissorLadderCheckId Int
+  scissorLadderCheck   ScissorLadderCheck @relation(fields: [scissorLadderCheckId], references: [id], onDelete: Cascade)
+}
+
+model ScissorLadderCheckPhoto {
+  id Int @id @default(autoincrement())
+
+  imageUrl String
+
+  createdAt DateTime @default(now())
+
+  scissorLadderCheckId Int
+  scissorLadderCheck   ScissorLadderCheck @relation(fields: [scissorLadderCheckId], references: [id], onDelete: Cascade)
+}
+
+model ToolsEppCheck {
+  id Int @id @default(autoincrement())
+
+  folio String?
+  date  DateTime @default(now())
+
+  contract                String?
+  technicianName          String?
+  mobile                  String?
+  supervisorInspectorName String?
+  zone                    String?
+
+  technicianSignatureUrl String?
+  inspectorSignatureUrl  String?
+
+  status ToolsEppCheckStatus @default(PENDIENTE)
+
+  generalObservation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  items ToolsEppCheckItem[]
+}
+
+model ToolsEppCheckItem {
+  id Int @id @default(autoincrement())
+
+  number Int?
+  name   String
+
+  quantity    String?
+  status      ToolsEppItemStatus?
+  observation String?
+
+  createdAt DateTime @default(now())
+
+  toolsEppCheckId Int
+  toolsEppCheck   ToolsEppCheck @relation(fields: [toolsEppCheckId], references: [id], onDelete: Cascade)
+}
+
+model ToolsDriverCheck {
+  id Int @id @default(autoincrement())
+
+  folio String?
+  date  DateTime @default(now())
+
+  contract String?
+  driverName String?
+  mobile String?
+  supervisorInspectorName String?
+  zone String?
+  heightExamExpiration String?
+
+  driverSignatureUrl String?
+  inspectorSignatureUrl String?
+
+  status ToolsDriverCheckStatus @default(PENDIENTE)
+
+  generalObservation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  items ToolsDriverCheckItem[]
+}
+
+model ToolsDriverCheckItem {
+  id Int @id @default(autoincrement())
+
+  number Int?
+  name   String
+
+  quantity String?
+  status ToolsDriverItemStatus?
+  observation String?
+
+  createdAt DateTime @default(now())
+
+  toolsDriverCheckId Int
+  toolsDriverCheck   ToolsDriverCheck @relation(fields: [toolsDriverCheckId], references: [id], onDelete: Cascade)
 }

@@ -3,27 +3,25 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   Calendar,
-  Car,
   Eye,
   FileText,
   User,
   X,
-  Camera,
-  CheckCircle2,
-  AlertTriangle,
   ArrowLeft,
   Trash2,
   FileDown,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 
-import "./VehicleCheckHistory.css";
+import "./SafetyTalkHistory.css";
 
 const API_URL = "http://localhost:3000";
 
 function getToken() {
   return (
-    localStorage.getItem("access_token") ||
     localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
     ""
   );
 }
@@ -55,7 +53,11 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString("es-CL");
 }
 
-function VehicleCheckHistory() {
+function formatType(value) {
+  return String(value || "").replaceAll("_", " ").trim();
+}
+
+function SafetyTalkHistory() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -73,12 +75,9 @@ function VehicleCheckHistory() {
     if (!record?.id) return;
 
     try {
-      const response = await fetch(
-        `${API_URL}/vehicle-checklist/${record.id}/pdf`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response = await fetch(`${API_URL}/safety-talks/${record.id}/pdf`, {
+        headers: authHeaders(),
+      });
 
       if (!response.ok) {
         throw new Error("No se pudo abrir el PDF");
@@ -99,8 +98,8 @@ function VehicleCheckHistory() {
       setLoading(true);
 
       const endpoint = isAllHistory
-        ? `${API_URL}/vehicle-checklist/all`
-        : `${API_URL}/vehicle-checklist`;
+        ? `${API_URL}/safety-talks/all`
+        : `${API_URL}/safety-talks`;
 
       const response = await fetch(endpoint, {
         headers: authHeaders(),
@@ -115,6 +114,7 @@ function VehicleCheckHistory() {
     } catch (error) {
       console.error(error);
       alert("Error cargando historial");
+      setRecords([]);
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,7 @@ function VehicleCheckHistory() {
       setDeletingId(recordToDelete.id);
 
       const response = await fetch(
-        `${API_URL}/vehicle-checklist/${recordToDelete.id}`,
+        `${API_URL}/safety-talks/${recordToDelete.id}`,
         {
           method: "DELETE",
           headers: authHeaders(),
@@ -143,7 +143,7 @@ function VehicleCheckHistory() {
       );
 
       if (!response.ok) {
-        throw new Error("Error eliminando check list");
+        throw new Error("Error eliminando charla");
       }
 
       setRecords((prev) =>
@@ -157,7 +157,7 @@ function VehicleCheckHistory() {
       setRecordToDelete(null);
     } catch (error) {
       console.error(error);
-      alert("Error eliminando check list ❌");
+      alert("Error eliminando charla ❌");
     } finally {
       setDeletingId(null);
     }
@@ -165,8 +165,8 @@ function VehicleCheckHistory() {
 
   useEffect(() => {
     if (isAllHistory && !isSuperadmin) {
-      alert("No tienes permiso para ver todos los check list");
-      navigate("/check-vehiculos/historial");
+      alert("No tienes permiso para ver todas las charlas");
+      navigate("/charlas/historial");
       return;
     }
 
@@ -179,14 +179,14 @@ function VehicleCheckHistory() {
         <div>
           <h2>
             {isAllHistory
-              ? "Historial General Check List Vehículos"
-              : "Mis Check List Vehículos"}
+              ? "Historial General Charlas de Seguridad"
+              : "Mis Charlas de Seguridad"}
           </h2>
 
           <p>
             {isAllHistory
               ? "Todos los registros guardados por los usuarios."
-              : "Registros guardados de tus inspecciones vehiculares."}
+              : "Registros guardados de tus charlas y participantes."}
           </p>
         </div>
 
@@ -195,10 +195,10 @@ function VehicleCheckHistory() {
             <button
               type="button"
               className="history-back-button"
-              onClick={() => navigate("/check-vehiculos/historial-todos")}
+              onClick={() => navigate("/charlas/historial-todos")}
             >
               <FileText size={18} />
-              Ver Todos
+              Ver Todas
             </button>
           )}
 
@@ -206,17 +206,17 @@ function VehicleCheckHistory() {
             <button
               type="button"
               className="history-back-button"
-              onClick={() => navigate("/check-vehiculos/historial")}
+              onClick={() => navigate("/charlas/historial")}
             >
               <User size={18} />
-              Ver Mis Check List
+              Ver Mis Charlas
             </button>
           )}
 
           <button
             type="button"
             className="history-back-button"
-            onClick={() => navigate("/check-vehiculos")}
+            onClick={() => navigate("/charlas")}
           >
             <ArrowLeft size={18} />
             Volver al Formulario
@@ -231,18 +231,18 @@ function VehicleCheckHistory() {
           <div className="history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
-            <p>Los check list guardados aparecerán aquí.</p>
+            <p>Las charlas guardadas aparecerán aquí.</p>
           </div>
         ) : (
           <div className="history-list">
             {records.map((record) => (
               <div className="history-row" key={record.id}>
                 <div className="history-icon">
-                  <Car size={22} />
+                  <ShieldCheck size={22} />
                 </div>
 
                 <div className="history-info">
-                  <h3>{record.patent || "Sin patente"}</h3>
+                  <h3>{record.topicTitle || "Sin tema"}</h3>
 
                   <div className="history-meta">
                     <span>
@@ -252,7 +252,12 @@ function VehicleCheckHistory() {
 
                     <span>
                       <User size={15} />
-                      {record.driverName || "Sin conductor"}
+                      {record.reporterName || "Sin relator"}
+                    </span>
+
+                    <span>
+                      <Users size={15} />
+                      {record.participants?.length || 0} participantes
                     </span>
 
                     {isAllHistory && (
@@ -306,10 +311,10 @@ function VehicleCheckHistory() {
           <div className="detail-modal">
             <div className="detail-header">
               <div>
-                <h3>Detalle Check List</h3>
+                <h3>Detalle Charla</h3>
                 <p>
-                  Patente:{" "}
-                  <strong>{selectedRecord.patent || "Sin patente"}</strong>
+                  Tema:{" "}
+                  <strong>{selectedRecord.topicTitle || "Sin tema"}</strong>
                 </p>
               </div>
 
@@ -329,23 +334,18 @@ function VehicleCheckHistory() {
               </div>
 
               <div>
-                <span>Conductor</span>
-                <strong>{selectedRecord.driverName || "Sin conductor"}</strong>
+                <span>Tipo</span>
+                <strong>{formatType(selectedRecord.type)}</strong>
               </div>
 
               <div>
-                <span>Kilometraje</span>
-                <strong>{selectedRecord.mileage || 0}</strong>
+                <span>Relator</span>
+                <strong>{selectedRecord.reporterName || "Sin relator"}</strong>
               </div>
 
               <div>
-                <span>Tipo Vehículo</span>
-                <strong>{selectedRecord.vehicleType || "—"}</strong>
-              </div>
-
-              <div>
-                <span>Modelo</span>
-                <strong>{selectedRecord.vehicleModel || "—"}</strong>
+                <span>Sección / Obra</span>
+                <strong>{selectedRecord.sectionOrWork || "—"}</strong>
               </div>
 
               {isAllHistory && (
@@ -357,64 +357,32 @@ function VehicleCheckHistory() {
             </div>
 
             <div className="detail-section">
-              <h4>Chequeo General</h4>
-
-              <div className="detail-items">
-                {selectedRecord.items?.length > 0 ? (
-                  selectedRecord.items.map((item) => (
-                    <div
-                      className={`detail-item ${
-                        item.status === "MALO" ? "bad" : ""
-                      }`}
-                      key={item.id}
-                    >
-                      <div>
-                        {item.status === "MALO" ? (
-                          <AlertTriangle size={18} />
-                        ) : (
-                          <CheckCircle2 size={18} />
-                        )}
-
-                        <strong>{item.itemName}</strong>
-                      </div>
-
-                      <span>{item.status || "Sin estado"}</span>
-
-                      <p>{item.observation || "Sin observación"}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="detail-observation">Sin ítems registrados.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="detail-section">
-              <h4>Observaciones Generales</h4>
-
+              <h4>Detalle charla</h4>
               <p className="detail-observation">
-                {selectedRecord.generalObservation || "Sin observaciones"}
+                {selectedRecord.topicDetails || "Sin detalle"}
               </p>
             </div>
 
             <div className="detail-section">
-              <h4>
-                <Camera size={18} />
-                Fotos del Desperfecto
-              </h4>
+              <h4>Participantes</h4>
 
-              {selectedRecord.photos?.length > 0 ? (
-                <div className="detail-photo-grid">
-                  {selectedRecord.photos.map((photo) => (
-                    <img
-                      key={photo.id}
-                      src={`${API_URL}${photo.imageUrl}`}
-                      alt="desperfecto"
-                    />
+              {selectedRecord.participants?.length > 0 ? (
+                <div className="detail-items">
+                  {selectedRecord.participants.map((participant, index) => (
+                    <div key={index} className="detail-item">
+                      <div>
+                        <Users size={18} />
+                        <strong>{participant.name || "Sin nombre"}</strong>
+                      </div>
+
+                      <span>{participant.rut || "Sin RUT"}</span>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <p className="detail-observation">Sin fotos adjuntas.</p>
+                <p className="detail-observation">
+                  Sin participantes registrados.
+                </p>
               )}
             </div>
 
@@ -438,7 +406,7 @@ function VehicleCheckHistory() {
                   <Trash2 size={17} />
                   {deletingId === selectedRecord.id
                     ? "Eliminando..."
-                    : "Eliminar Check List"}
+                    : "Eliminar Charla"}
                 </button>
               )}
             </div>
@@ -453,11 +421,11 @@ function VehicleCheckHistory() {
               <Trash2 size={38} />
             </div>
 
-            <h3>¿Eliminar check list?</h3>
+            <h3>¿Eliminar charla?</h3>
 
             <p>
-              Estás a punto de eliminar el check list de la patente{" "}
-              <strong>“{recordToDelete.patent || "Sin patente"}”</strong>.
+              Estás a punto de eliminar la charla{" "}
+              <strong>“{recordToDelete.topicTitle || "Sin tema"}”</strong>.
             </p>
 
             <p className="delete-warning">Esta acción no se puede deshacer.</p>
@@ -489,4 +457,4 @@ function VehicleCheckHistory() {
   );
 }
 
-export default VehicleCheckHistory;
+export default SafetyTalkHistory;

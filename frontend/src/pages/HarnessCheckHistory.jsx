@@ -2,28 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import {
-  Calendar,
-  Car,
-  Eye,
-  FileText,
-  User,
-  X,
-  Camera,
-  CheckCircle2,
   AlertTriangle,
   ArrowLeft,
-  Trash2,
+  Calendar,
+  Eye,
   FileDown,
+  FileText,
+  ShieldCheck,
+  Trash2,
+  User,
+  X,
 } from "lucide-react";
 
-import "./VehicleCheckHistory.css";
+import "./HarnessCheckHistory.css";
 
 const API_URL = "http://localhost:3000";
 
 function getToken() {
   return (
-    localStorage.getItem("access_token") ||
     localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
     ""
   );
 }
@@ -55,7 +53,16 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString("es-CL");
 }
 
-function VehicleCheckHistory() {
+function formatStatus(value) {
+  const status = String(value || "PENDIENTE").toUpperCase();
+
+  if (status === "APROBADO") return "Aprobado";
+  if (status === "RECHAZADO") return "Rechazado";
+
+  return "Pendiente";
+}
+
+function HarnessCheckHistory() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -69,16 +76,41 @@ function VehicleCheckHistory() {
   const [deletingId, setDeletingId] = useState(null);
   const [recordToDelete, setRecordToDelete] = useState(null);
 
+  async function loadRecords() {
+    try {
+      setLoading(true);
+
+      const endpoint = isAllHistory
+        ? `${API_URL}/harness-check/all`
+        : `${API_URL}/harness-check`;
+
+      const response = await fetch(endpoint, {
+        headers: authHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error cargando historial");
+      }
+
+      const data = await response.json();
+
+      setRecords(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      alert("Error cargando historial");
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function openPdfPreview(record) {
     if (!record?.id) return;
 
     try {
-      const response = await fetch(
-        `${API_URL}/vehicle-checklist/${record.id}/pdf`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response = await fetch(`${API_URL}/harness-check/${record.id}/pdf`, {
+        headers: authHeaders(),
+      });
 
       if (!response.ok) {
         throw new Error("No se pudo abrir el PDF");
@@ -91,32 +123,6 @@ function VehicleCheckHistory() {
     } catch (error) {
       console.error(error);
       alert("Error abriendo PDF ❌");
-    }
-  }
-
-  async function loadRecords() {
-    try {
-      setLoading(true);
-
-      const endpoint = isAllHistory
-        ? `${API_URL}/vehicle-checklist/all`
-        : `${API_URL}/vehicle-checklist`;
-
-      const response = await fetch(endpoint, {
-        headers: authHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error("Error cargando historial");
-      }
-
-      const data = await response.json();
-      setRecords(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error(error);
-      alert("Error cargando historial");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -135,7 +141,7 @@ function VehicleCheckHistory() {
       setDeletingId(recordToDelete.id);
 
       const response = await fetch(
-        `${API_URL}/vehicle-checklist/${recordToDelete.id}`,
+        `${API_URL}/harness-check/${recordToDelete.id}`,
         {
           method: "DELETE",
           headers: authHeaders(),
@@ -165,8 +171,8 @@ function VehicleCheckHistory() {
 
   useEffect(() => {
     if (isAllHistory && !isSuperadmin) {
-      alert("No tienes permiso para ver todos los check list");
-      navigate("/check-vehiculos/historial");
+      alert("No tienes permiso para ver todos los check list de arnés");
+      navigate("/arnes/historial");
       return;
     }
 
@@ -179,23 +185,23 @@ function VehicleCheckHistory() {
         <div>
           <h2>
             {isAllHistory
-              ? "Historial General Check List Vehículos"
-              : "Mis Check List Vehículos"}
+              ? "Historial General Check List Arnés"
+              : "Mis Check List Arnés"}
           </h2>
 
           <p>
             {isAllHistory
-              ? "Todos los registros guardados por los usuarios."
-              : "Registros guardados de tus inspecciones vehiculares."}
+              ? "Todos los registros de arnés guardados por los usuarios."
+              : "Registros guardados de tus inspecciones de arnés."}
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="history-header-buttons">
           {isSuperadmin && !isAllHistory && (
             <button
               type="button"
               className="history-back-button"
-              onClick={() => navigate("/check-vehiculos/historial-todos")}
+              onClick={() => navigate("/arnes/historial-todos")}
             >
               <FileText size={18} />
               Ver Todos
@@ -206,7 +212,7 @@ function VehicleCheckHistory() {
             <button
               type="button"
               className="history-back-button"
-              onClick={() => navigate("/check-vehiculos/historial")}
+              onClick={() => navigate("/arnes/historial")}
             >
               <User size={18} />
               Ver Mis Check List
@@ -216,7 +222,7 @@ function VehicleCheckHistory() {
           <button
             type="button"
             className="history-back-button"
-            onClick={() => navigate("/check-vehiculos")}
+            onClick={() => navigate("/arnes")}
           >
             <ArrowLeft size={18} />
             Volver al Formulario
@@ -231,18 +237,18 @@ function VehicleCheckHistory() {
           <div className="history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
-            <p>Los check list guardados aparecerán aquí.</p>
+            <p>Los check list de arnés guardados aparecerán aquí.</p>
           </div>
         ) : (
           <div className="history-list">
             {records.map((record) => (
               <div className="history-row" key={record.id}>
                 <div className="history-icon">
-                  <Car size={22} />
+                  <ShieldCheck size={22} />
                 </div>
 
                 <div className="history-info">
-                  <h3>{record.patent || "Sin patente"}</h3>
+                  <h3>{record.folio || "Check List Arnés"}</h3>
 
                   <div className="history-meta">
                     <span>
@@ -252,7 +258,12 @@ function VehicleCheckHistory() {
 
                     <span>
                       <User size={15} />
-                      {record.driverName || "Sin conductor"}
+                      {record.technicianName || "Sin técnico"}
+                    </span>
+
+                    <span>
+                      <AlertTriangle size={15} />
+                      {formatStatus(record.status)}
                     </span>
 
                     {isAllHistory && (
@@ -306,10 +317,9 @@ function VehicleCheckHistory() {
           <div className="detail-modal">
             <div className="detail-header">
               <div>
-                <h3>Detalle Check List</h3>
+                <h3>Detalle Check List Arnés</h3>
                 <p>
-                  Patente:{" "}
-                  <strong>{selectedRecord.patent || "Sin patente"}</strong>
+                  Folio: <strong>{selectedRecord.folio || "Sin folio"}</strong>
                 </p>
               </div>
 
@@ -329,23 +339,30 @@ function VehicleCheckHistory() {
               </div>
 
               <div>
-                <span>Conductor</span>
-                <strong>{selectedRecord.driverName || "Sin conductor"}</strong>
+                <span>Contrato</span>
+                <strong>{selectedRecord.contract || "—"}</strong>
               </div>
 
               <div>
-                <span>Kilometraje</span>
-                <strong>{selectedRecord.mileage || 0}</strong>
+                <span>Técnico</span>
+                <strong>{selectedRecord.technicianName || "—"}</strong>
               </div>
 
               <div>
-                <span>Tipo Vehículo</span>
-                <strong>{selectedRecord.vehicleType || "—"}</strong>
+                <span>Móvil</span>
+                <strong>{selectedRecord.mobile || "—"}</strong>
               </div>
 
               <div>
-                <span>Modelo</span>
-                <strong>{selectedRecord.vehicleModel || "—"}</strong>
+                <span>Supervisor / Inspector</span>
+                <strong>
+                  {selectedRecord.supervisorInspectorName || "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span>Zona</span>
+                <strong>{selectedRecord.zone || "—"}</strong>
               </div>
 
               {isAllHistory && (
@@ -357,25 +374,22 @@ function VehicleCheckHistory() {
             </div>
 
             <div className="detail-section">
-              <h4>Chequeo General</h4>
+              <h4>Inspección del Arnés</h4>
 
               <div className="detail-items">
                 {selectedRecord.items?.length > 0 ? (
-                  selectedRecord.items.map((item) => (
+                  selectedRecord.items.map((item, index) => (
                     <div
                       className={`detail-item ${
-                        item.status === "MALO" ? "bad" : ""
+                        item.status === "NO" ? "bad" : ""
                       }`}
-                      key={item.id}
+                      key={item.id || index}
                     >
                       <div>
-                        {item.status === "MALO" ? (
-                          <AlertTriangle size={18} />
-                        ) : (
-                          <CheckCircle2 size={18} />
-                        )}
-
-                        <strong>{item.itemName}</strong>
+                        <ShieldCheck size={18} />
+                        <strong>
+                          {index + 1}. {item.description}
+                        </strong>
                       </div>
 
                       <span>{item.status || "Sin estado"}</span>
@@ -395,27 +409,6 @@ function VehicleCheckHistory() {
               <p className="detail-observation">
                 {selectedRecord.generalObservation || "Sin observaciones"}
               </p>
-            </div>
-
-            <div className="detail-section">
-              <h4>
-                <Camera size={18} />
-                Fotos del Desperfecto
-              </h4>
-
-              {selectedRecord.photos?.length > 0 ? (
-                <div className="detail-photo-grid">
-                  {selectedRecord.photos.map((photo) => (
-                    <img
-                      key={photo.id}
-                      src={`${API_URL}${photo.imageUrl}`}
-                      alt="desperfecto"
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="detail-observation">Sin fotos adjuntas.</p>
-              )}
             </div>
 
             <div className="detail-footer-actions">
@@ -456,8 +449,8 @@ function VehicleCheckHistory() {
             <h3>¿Eliminar check list?</h3>
 
             <p>
-              Estás a punto de eliminar el check list de la patente{" "}
-              <strong>“{recordToDelete.patent || "Sin patente"}”</strong>.
+              Estás a punto de eliminar el check list{" "}
+              <strong>“{recordToDelete.folio || "Sin folio"}”</strong>.
             </p>
 
             <p className="delete-warning">Esta acción no se puede deshacer.</p>
@@ -489,4 +482,4 @@ function VehicleCheckHistory() {
   );
 }
 
-export default VehicleCheckHistory;
+export default HarnessCheckHistory;

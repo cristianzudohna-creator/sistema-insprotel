@@ -3,8 +3,8 @@ import { JwtModule } from "@nestjs/jwt";
 
 import { PrismaModule } from "../prisma/prisma.module";
 
-import { VehicleChecklistController } from "./vehicle-checklist.controller";
-import { VehicleChecklistService } from "./vehicle-checklist.service";
+import { HarnessCheckController } from "./harness-check.controller";
+import { HarnessCheckService } from "./harness-check.service";
 
 @Module({
   imports: [
@@ -13,7 +13,7 @@ import { VehicleChecklistService } from "./vehicle-checklist.service";
       secret: process.env.JWT_SECRET || "secret",
     }),
   ],
-  controllers: [VehicleChecklistController],
-  providers: [VehicleChecklistService],
+  controllers: [HarnessCheckController],
+  providers: [HarnessCheckService],
 })
-export class VehicleChecklistModule {}
+export class HarnessCheckModule {}

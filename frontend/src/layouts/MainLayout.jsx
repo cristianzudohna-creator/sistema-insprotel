@@ -17,6 +17,9 @@ import {
   Menu,
   X,
   UserCog,
+  Shield,
+  ClipboardCheck,
+  HardHat,
 } from "lucide-react";
 
 import { getUser, logout } from "../auth/auth";
@@ -52,29 +55,29 @@ function MainLayout({ children }) {
 
         <nav className="menu">
           {isSuperadmin && (
-            <>
-              <NavLink
-                to="/dashboard"
-                onClick={closeMenu}
-                className={({ isActive }) =>
-                  isActive ? "menu-item active-link" : "menu-item"
-                }
-              >
-                <LayoutDashboard size={20} />
-                <span>Dashboard</span>
-              </NavLink>
+            <NavLink
+              to="/dashboard"
+              onClick={closeMenu}
+              className={({ isActive }) =>
+                isActive ? "menu-item active-link" : "menu-item"
+              }
+            >
+              <LayoutDashboard size={20} />
+              <span>Dashboard</span>
+            </NavLink>
+          )}
 
-              <NavLink
-                to="/charlas"
-                onClick={closeMenu}
-                className={({ isActive }) =>
-                  isActive ? "menu-item active-link" : "menu-item"
-                }
-              >
-                <ShieldCheck size={20} />
-                <span>Charlas Seguridad</span>
-              </NavLink>
-            </>
+          {isSuperadmin && (
+            <NavLink
+              to="/charlas"
+              onClick={closeMenu}
+              className={({ isActive }) =>
+                isActive ? "menu-item active-link" : "menu-item"
+              }
+            >
+              <ShieldCheck size={20} />
+              <span>Charlas Seguridad</span>
+            </NavLink>
           )}
 
           <NavLink
@@ -88,6 +91,39 @@ function MainLayout({ children }) {
             <span>Check Vehículos</span>
           </NavLink>
 
+          <NavLink
+            to="/arnes"
+            onClick={closeMenu}
+            className={({ isActive }) =>
+              isActive ? "menu-item active-link" : "menu-item"
+            }
+          >
+            <Shield size={20} />
+            <span>Check Arnés</span>
+          </NavLink>
+
+          <NavLink
+            to="/escalas"
+            onClick={closeMenu}
+            className={({ isActive }) =>
+              isActive ? "menu-item active-link" : "menu-item"
+            }
+          >
+            <ClipboardCheck size={20} />
+            <span>Check Escalas Telescopica</span>
+          </NavLink>
+
+          <NavLink
+            to="/escaleras-tijera"
+            onClick={closeMenu}
+            className={({ isActive }) =>
+              isActive ? "menu-item active-link" : "menu-item"
+            }
+          >
+            <ClipboardCheck size={20} />
+            <span>Check Escaleras Tijera</span>
+          </NavLink>
+
           {isSuperadmin && (
             <>
               <NavLink
@@ -98,7 +134,18 @@ function MainLayout({ children }) {
                 }
               >
                 <Wrench size={20} />
-                <span>Check Herramientas</span>
+                <span>Check Herramientas y EPP Tecnico</span>
+              </NavLink>
+
+              <NavLink
+                to="/check-conductor"
+                onClick={closeMenu}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active-link" : "menu-item"
+                }
+              >
+                <HardHat size={20} />
+                <span>Check Herramientas y EPP Conductor</span>
               </NavLink>
 
               <NavLink
