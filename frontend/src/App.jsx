@@ -62,30 +62,20 @@ function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            isUserSuperadmin ? (
-              <Dashboard />
-            ) : (
-              <Navigate to="/check-vehiculos" replace />
-            )
-          }
-        />
-
-        <Route path="/charlas" element={<SafetyTalks />} />
-        <Route path="/charlas/historial" element={<SafetyTalkHistory />} />
-        <Route
-          path="/charlas/historial-todos"
-          element={
             <SuperadminRoute>
-              <SafetyTalkHistory />
+              <Dashboard />
             </SuperadminRoute>
           }
         />
 
+        {/* CHECK VEHICULOS */}
         <Route path="/check-vehiculos" element={<VehicleCheckList />} />
+
         <Route
           path="/check-vehiculos/historial"
           element={<VehicleCheckHistory />}
         />
+
         <Route
           path="/check-vehiculos/historial-todos"
           element={
@@ -95,8 +85,53 @@ function AppRoutes() {
           }
         />
 
-        <Route path="/arnes" element={<HarnessCheck />} />
-        <Route path="/arnes/historial" element={<HarnessCheckHistory />} />
+        {/* CHARLAS */}
+        <Route
+          path="/charlas"
+          element={
+            <SuperadminRoute>
+              <SafetyTalks />
+            </SuperadminRoute>
+          }
+        />
+
+        <Route
+          path="/charlas/historial"
+          element={
+            <SuperadminRoute>
+              <SafetyTalkHistory />
+            </SuperadminRoute>
+          }
+        />
+
+        <Route
+          path="/charlas/historial-todos"
+          element={
+            <SuperadminRoute>
+              <SafetyTalkHistory />
+            </SuperadminRoute>
+          }
+        />
+
+        {/* ARNES */}
+        <Route
+          path="/arnes"
+          element={
+            <SuperadminRoute>
+              <HarnessCheck />
+            </SuperadminRoute>
+          }
+        />
+
+        <Route
+          path="/arnes/historial"
+          element={
+            <SuperadminRoute>
+              <HarnessCheckHistory />
+            </SuperadminRoute>
+          }
+        />
+
         <Route
           path="/arnes/historial-todos"
           element={
@@ -106,8 +141,25 @@ function AppRoutes() {
           }
         />
 
-        <Route path="/escalas" element={<LadderCheck />} />
-        <Route path="/escalas/historial" element={<LadderCheckHistory />} />
+        {/* ESCALAS */}
+        <Route
+          path="/escalas"
+          element={
+            <SuperadminRoute>
+              <LadderCheck />
+            </SuperadminRoute>
+          }
+        />
+
+        <Route
+          path="/escalas/historial"
+          element={
+            <SuperadminRoute>
+              <LadderCheckHistory />
+            </SuperadminRoute>
+          }
+        />
+
         <Route
           path="/escalas/historial-todos"
           element={
@@ -117,11 +169,25 @@ function AppRoutes() {
           }
         />
 
-        <Route path="/escaleras-tijera" element={<ScissorLadderCheck />} />
+        {/* ESCALERAS TIJERA */}
+        <Route
+          path="/escaleras-tijera"
+          element={
+            <SuperadminRoute>
+              <ScissorLadderCheck />
+            </SuperadminRoute>
+          }
+        />
+
         <Route
           path="/escaleras-tijera/historial"
-          element={<ScissorLadderCheckHistory />}
+          element={
+            <SuperadminRoute>
+              <ScissorLadderCheckHistory />
+            </SuperadminRoute>
+          }
         />
+
         <Route
           path="/escaleras-tijera/historial-todos"
           element={
@@ -131,11 +197,25 @@ function AppRoutes() {
           }
         />
 
-        <Route path="/check-herramientas" element={<ToolsEppCheck />} />
+        {/* HERRAMIENTAS TECNICO */}
+        <Route
+          path="/check-herramientas"
+          element={
+            <SuperadminRoute>
+              <ToolsEppCheck />
+            </SuperadminRoute>
+          }
+        />
+
         <Route
           path="/check-herramientas/historial"
-          element={<ToolsEppCheckHistory />}
+          element={
+            <SuperadminRoute>
+              <ToolsEppCheckHistory />
+            </SuperadminRoute>
+          }
         />
+
         <Route
           path="/check-herramientas/historial-todos"
           element={
@@ -145,11 +225,25 @@ function AppRoutes() {
           }
         />
 
-        <Route path="/check-conductor" element={<ToolsDriverCheck />} />
+        {/* HERRAMIENTAS CONDUCTOR */}
+        <Route
+          path="/check-conductor"
+          element={
+            <SuperadminRoute>
+              <ToolsDriverCheck />
+            </SuperadminRoute>
+          }
+        />
+
         <Route
           path="/check-conductor/historial"
-          element={<ToolsDriverCheckHistory />}
+          element={
+            <SuperadminRoute>
+              <ToolsDriverCheckHistory />
+            </SuperadminRoute>
+          }
         />
+
         <Route
           path="/check-conductor/historial-todos"
           element={
@@ -159,6 +253,7 @@ function AppRoutes() {
           }
         />
 
+        {/* USUARIOS */}
         <Route
           path="/usuarios"
           element={

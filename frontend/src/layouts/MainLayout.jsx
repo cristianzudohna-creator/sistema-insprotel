@@ -1,7 +1,7 @@
 import "./MainLayout.css";
 import logo from "../assets/logo-insprotel.png";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
 import {
@@ -26,6 +26,17 @@ import { getUser, logout } from "../auth/auth";
 
 function MainLayout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+  if (menuOpen) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+  }
+
+  return () => {
+    document.body.style.overflow = "";
+  };
+}, [menuOpen]);
   const user = getUser();
 
   const isSuperadmin = user?.role === "SUPERADMIN";

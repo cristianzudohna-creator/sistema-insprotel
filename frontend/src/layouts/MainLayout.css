@@ -59,6 +59,9 @@ body,
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .menu-item {
@@ -88,6 +91,7 @@ body,
 
 .logout-button {
   margin-top: auto;
+  flex-shrink: 0;
   border: none;
   background: rgba(255, 255, 255, 0.08);
   color: white;
@@ -238,7 +242,9 @@ body,
     top: 0;
     width: 280px;
     height: 100vh;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     z-index: 999;
   }
 
