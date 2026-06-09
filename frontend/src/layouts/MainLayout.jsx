@@ -91,41 +91,41 @@ function MainLayout({ children }) {
             <span>Check Vehículos</span>
           </NavLink>
 
-          <NavLink
-            to="/arnes"
-            onClick={closeMenu}
-            className={({ isActive }) =>
-              isActive ? "menu-item active-link" : "menu-item"
-            }
-          >
-            <Shield size={20} />
-            <span>Check Arnés</span>
-          </NavLink>
-
-          <NavLink
-            to="/escalas"
-            onClick={closeMenu}
-            className={({ isActive }) =>
-              isActive ? "menu-item active-link" : "menu-item"
-            }
-          >
-            <ClipboardCheck size={20} />
-            <span>Check Escalas Telescopica</span>
-          </NavLink>
-
-          <NavLink
-            to="/escaleras-tijera"
-            onClick={closeMenu}
-            className={({ isActive }) =>
-              isActive ? "menu-item active-link" : "menu-item"
-            }
-          >
-            <ClipboardCheck size={20} />
-            <span>Check Escaleras Tijera</span>
-          </NavLink>
-
           {isSuperadmin && (
             <>
+              <NavLink
+                to="/arnes"
+                onClick={closeMenu}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active-link" : "menu-item"
+                }
+              >
+                <Shield size={20} />
+                <span>Check Arnés</span>
+              </NavLink>
+
+              <NavLink
+                to="/escalas"
+                onClick={closeMenu}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active-link" : "menu-item"
+                }
+              >
+                <ClipboardCheck size={20} />
+                <span>Check Escalas Telescopica</span>
+              </NavLink>
+
+              <NavLink
+                to="/escaleras-tijera"
+                onClick={closeMenu}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active-link" : "menu-item"
+                }
+              >
+                <ClipboardCheck size={20} />
+                <span>Check Escaleras Tijera</span>
+              </NavLink>
+
               <NavLink
                 to="/check-herramientas"
                 onClick={closeMenu}
