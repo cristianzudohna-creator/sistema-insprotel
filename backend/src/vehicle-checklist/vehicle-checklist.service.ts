@@ -59,6 +59,15 @@ export class VehicleChecklistService {
     return "—";
   }
 
+  private normalizeDocumentStatus(value: any) {
+    const normalized = String(value || "").trim().toUpperCase();
+
+    if (normalized === "VIGENTE") return "VIGENTE";
+    if (normalized === "VENCIDA" || normalized === "VENCIDO") return "VENCIDA";
+
+    return null;
+  }
+
   private isSuperadmin(user: any) {
     return String(user?.role || "").toUpperCase() === "SUPERADMIN";
   }
@@ -164,11 +173,32 @@ export class VehicleChecklistService {
         driverSignatureUrl: driverSignature
           ? `/uploads/vehicle-checklist/${driverSignature.filename}`
           : null,
+
         technicalReview: this.toDate(data.technicalReview),
+        technicalReviewStatus: this.normalizeDocumentStatus(
+          data.technicalReviewStatus,
+        ) as any,
+
         gasEmissionReview: this.toDate(data.gasReview),
+        gasEmissionReviewStatus: this.normalizeDocumentStatus(
+          data.gasEmissionReviewStatus,
+        ) as any,
+
         driverLicenseExpiration: this.toDate(data.driverLicense),
+        driverLicenseStatus: this.normalizeDocumentStatus(
+          data.driverLicenseStatus,
+        ) as any,
+
         circulationPermitExpiration: this.toDate(data.circulationPermit),
+        circulationPermitStatus: this.normalizeDocumentStatus(
+          data.circulationPermitStatus,
+        ) as any,
+
         mandatoryInsuranceExpiration: this.toDate(data.insurance),
+        mandatoryInsuranceStatus: this.normalizeDocumentStatus(
+          data.mandatoryInsuranceStatus,
+        ) as any,
+
         generalObservation: data.observations || null,
         status: data.status || "PENDIENTE",
         userId: user.id,
@@ -290,10 +320,10 @@ export class VehicleChecklistService {
 
     res.setHeader("Content-Type", "application/pdf");
 
-res.setHeader(
-  "Content-Disposition",
-  `inline; filename="CHECKLIST_${safePatent}_${safeDriver}_${today}.pdf"`,
-);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="CHECKLIST_${safePatent}_${safeDriver}_${today}.pdf"`,
+    );
 
     doc.pipe(res);
 
@@ -536,16 +566,38 @@ res.setHeader(
     });
 
     const docs = [
-      ["Revisión Técnica", checklist.technicalReview],
-      ["Emisión Gases Contaminantes", checklist.gasEmissionReview],
-      ["Permiso Circulación", checklist.circulationPermitExpiration],
-      ["Seguro Obligatorio", checklist.mandatoryInsuranceExpiration],
-      ["Vigencia Licencia de Conducir", checklist.driverLicenseExpiration],
+      [
+        "Revisión Técnica",
+        checklist.technicalReview,
+        (checklist as any).technicalReviewStatus,
+      ],
+      [
+        "Emisión Gases Contaminantes",
+        checklist.gasEmissionReview,
+        (checklist as any).gasEmissionReviewStatus,
+      ],
+      [
+        "Permiso Circulación",
+        checklist.circulationPermitExpiration,
+        (checklist as any).circulationPermitStatus,
+      ],
+      [
+        "Seguro Obligatorio",
+        checklist.mandatoryInsuranceExpiration,
+        (checklist as any).mandatoryInsuranceStatus,
+      ],
+      [
+        "Vigencia Licencia de Conducir",
+        checklist.driverLicenseExpiration,
+        (checklist as any).driverLicenseStatus,
+      ],
     ];
 
     y = topY + docHeaderH;
 
-    docs.forEach(([label, value]: any[]) => {
+    docs.forEach(([label, value, documentStatus]: any[]) => {
+      const status = this.normalizeDocumentStatus(documentStatus);
+
       drawCell(rightX, y, 145, 16, label, {
         bold: true,
         align: "center",
@@ -556,9 +608,11 @@ res.setHeader(
       drawCell(rightX + 193, y, 38, 16, "");
       drawCell(rightX + 231, y, 38, 16, "");
 
-      if (value) {
+      if (status === "VIGENTE") {
         drawX(rightX + 193, y, 38, 16);
-      } else {
+      }
+
+      if (status === "VENCIDA") {
         drawX(rightX + 231, y, 38, 16);
       }
 

@@ -176,11 +176,22 @@ const INITIAL_FORM = {
   driverName: "",
   supervisorName: "",
   status: "PENDIENTE",
+
   technicalReview: "",
+  technicalReviewStatus: "",
+
   gasReview: "",
+  gasEmissionReviewStatus: "",
+
   driverLicense: "",
+  driverLicenseStatus: "",
+
   circulationPermit: "",
+  circulationPermitStatus: "",
+
   insurance: "",
+  mandatoryInsuranceStatus: "",
+
   observations: "",
 };
 
@@ -519,10 +530,20 @@ function VehicleCheckList() {
       formData.append("status", automaticStatus);
 
       formData.append("technicalReview", form.technicalReview);
+      formData.append("technicalReviewStatus", form.technicalReviewStatus);
+
       formData.append("gasReview", form.gasReview);
+      formData.append("gasEmissionReviewStatus", form.gasEmissionReviewStatus);
+
       formData.append("driverLicense", form.driverLicense);
+      formData.append("driverLicenseStatus", form.driverLicenseStatus);
+
       formData.append("circulationPermit", form.circulationPermit);
+      formData.append("circulationPermitStatus", form.circulationPermitStatus);
+
       formData.append("insurance", form.insurance);
+      formData.append("mandatoryInsuranceStatus", form.mandatoryInsuranceStatus);
+
       formData.append("observations", form.observations);
 
       formData.append(
@@ -692,47 +713,118 @@ function VehicleCheckList() {
         <div className="vehicle-form-grid">
           <label>
             Revisión Técnica
-            <input
-              type="date"
-              value={form.technicalReview}
-              onChange={(e) => handleInput("technicalReview", e.target.value)}
-            />
+            <div className="document-row">
+              <input
+                type="date"
+                value={form.technicalReview}
+                onChange={(e) =>
+                  handleInput("technicalReview", e.target.value)
+                }
+              />
+
+              <select
+                value={form.technicalReviewStatus}
+                onChange={(e) =>
+                  handleInput("technicalReviewStatus", e.target.value)
+                }
+              >
+                <option value="">Estado</option>
+                <option value="VIGENTE">Vigente</option>
+                <option value="VENCIDA">Vencida</option>
+              </select>
+            </div>
           </label>
 
           <label>
             Emisión Gases
-            <input
-              type="date"
-              value={form.gasReview}
-              onChange={(e) => handleInput("gasReview", e.target.value)}
-            />
+            <div className="document-row">
+              <input
+                type="date"
+                value={form.gasReview}
+                onChange={(e) => handleInput("gasReview", e.target.value)}
+              />
+
+              <select
+                value={form.gasEmissionReviewStatus}
+                onChange={(e) =>
+                  handleInput("gasEmissionReviewStatus", e.target.value)
+                }
+              >
+                <option value="">Estado</option>
+                <option value="VIGENTE">Vigente</option>
+                <option value="VENCIDA">Vencida</option>
+              </select>
+            </div>
           </label>
 
           <label>
             Licencia Conducir
-            <input
-              type="date"
-              value={form.driverLicense}
-              onChange={(e) => handleInput("driverLicense", e.target.value)}
-            />
+            <div className="document-row">
+              <input
+                type="date"
+                value={form.driverLicense}
+                onChange={(e) =>
+                  handleInput("driverLicense", e.target.value)
+                }
+              />
+
+              <select
+                value={form.driverLicenseStatus}
+                onChange={(e) =>
+                  handleInput("driverLicenseStatus", e.target.value)
+                }
+              >
+                <option value="">Estado</option>
+                <option value="VIGENTE">Vigente</option>
+                <option value="VENCIDA">Vencida</option>
+              </select>
+            </div>
           </label>
 
           <label>
             Permiso Circulación
-            <input
-              type="date"
-              value={form.circulationPermit}
-              onChange={(e) => handleInput("circulationPermit", e.target.value)}
-            />
+            <div className="document-row">
+              <input
+                type="date"
+                value={form.circulationPermit}
+                onChange={(e) =>
+                  handleInput("circulationPermit", e.target.value)
+                }
+              />
+
+              <select
+                value={form.circulationPermitStatus}
+                onChange={(e) =>
+                  handleInput("circulationPermitStatus", e.target.value)
+                }
+              >
+                <option value="">Estado</option>
+                <option value="VIGENTE">Vigente</option>
+                <option value="VENCIDA">Vencida</option>
+              </select>
+            </div>
           </label>
 
           <label>
             Seguro Obligatorio
-            <input
-              type="date"
-              value={form.insurance}
-              onChange={(e) => handleInput("insurance", e.target.value)}
-            />
+            <div className="document-row">
+              <input
+                type="date"
+                value={form.insurance}
+                onChange={(e) => handleInput("insurance", e.target.value)}
+              />
+
+              <select
+                value={form.mandatoryInsuranceStatus}
+                onChange={(e) =>
+                  handleInput("mandatoryInsuranceStatus", e.target.value)
+                }
+              >
+                <option value="">Estado</option>
+                <option value="VIGENTE">Vigente</option>
+                <option value="VENCIDA">Vencida</option>
+              </select>
+            </div>
           </label>
         </div>
       </section>

@@ -839,3 +839,33 @@ textarea {
     font-weight: 700;
   }
 }
+.document-status {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.document-status.valid {
+  color: #16a34a;
+}
+
+.document-status.expired {
+  color: #dc2626;
+}
+.document-row {
+  display: grid;
+  grid-template-columns: 1fr 150px;
+  gap: 10px;
+  align-items: center;
+}
+
+.document-row select {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .document-row {
+    grid-template-columns: 1fr;
+  }
+}

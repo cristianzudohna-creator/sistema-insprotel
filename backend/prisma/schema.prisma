@@ -86,6 +86,11 @@ enum ToolsDriverItemStatus {
   NO_APLICA
 }
 
+enum DocumentStatus {
+  VIGENTE
+  VENCIDA
+}
+
 model User {
   id       Int     @id @default(autoincrement())
   rut      String? @unique
@@ -140,11 +145,20 @@ model VehicleCheckList {
   supervisorName     String?
   driverSignatureUrl String?
 
-  technicalReview              DateTime?
-  gasEmissionReview            DateTime?
-  driverLicenseExpiration      DateTime?
-  circulationPermitExpiration  DateTime?
+  technicalReview       DateTime?
+  technicalReviewStatus DocumentStatus?
+
+  gasEmissionReview       DateTime?
+  gasEmissionReviewStatus DocumentStatus?
+
+  driverLicenseExpiration DateTime?
+  driverLicenseStatus     DocumentStatus?
+
+  circulationPermitExpiration DateTime?
+  circulationPermitStatus     DocumentStatus?
+
   mandatoryInsuranceExpiration DateTime?
+  mandatoryInsuranceStatus     DocumentStatus?
 
   generalObservation String?
 
@@ -438,14 +452,14 @@ model ToolsDriverCheck {
   folio String?
   date  DateTime @default(now())
 
-  contract String?
-  driverName String?
-  mobile String?
+  contract                String?
+  driverName              String?
+  mobile                  String?
   supervisorInspectorName String?
-  zone String?
-  heightExamExpiration String?
+  zone                    String?
+  heightExamExpiration    String?
 
-  driverSignatureUrl String?
+  driverSignatureUrl    String?
   inspectorSignatureUrl String?
 
   status ToolsDriverCheckStatus @default(PENDIENTE)
@@ -468,7 +482,7 @@ model ToolsDriverCheckItem {
   name   String
 
   quantity String?
-  status ToolsDriverItemStatus?
+  status   ToolsDriverItemStatus?
   observation String?
 
   createdAt DateTime @default(now())

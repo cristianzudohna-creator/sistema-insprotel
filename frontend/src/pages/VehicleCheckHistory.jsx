@@ -52,7 +52,12 @@ function authHeaders() {
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
-  return new Date(value).toLocaleDateString("es-CL");
+
+  const [year, month, day] = String(value)
+    .split("T")[0]
+    .split("-");
+
+  return `${day}-${month}-${year}`;
 }
 
 function VehicleCheckHistory() {
@@ -68,6 +73,8 @@ function VehicleCheckHistory() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [recordToDelete, setRecordToDelete] = useState(null);
+  const [searchDate, setSearchDate] = useState("");
+  const [searchPatent, setSearchPatent] = useState("");
 
   async function openPdfPreview(record) {
     if (!record?.id) return;
@@ -111,6 +118,7 @@ function VehicleCheckHistory() {
       }
 
       const data = await response.json();
+      console.log("CHECKLISTS:", data);
       setRecords(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
@@ -173,6 +181,41 @@ function VehicleCheckHistory() {
     loadRecords();
   }, [isAllHistory]);
 
+  const filteredRecords = records.filter((record) => {
+  const recordDate = record.date
+    ? new Date(record.date).toISOString().split("T")[0]
+    : "";
+
+  console.log(
+    "PATENTE:",
+    record.patent,
+    "FECHA REGISTRO:",
+    recordDate,
+    "FECHA FILTRO:",
+    searchDate
+  );
+
+  const matchDate =
+    !searchDate || recordDate === searchDate;
+
+  const matchPatent =
+    !searchPatent ||
+    String(record.patent || "")
+      .toLowerCase()
+      .includes(searchPatent.toLowerCase());
+
+      console.log({
+  patente: record.patent,
+  original: record.date,
+  convertida: recordDate,
+  filtro: searchDate,
+});
+
+  return matchDate && matchPatent;
+});
+
+console.log("FILTRADOS:", filteredRecords);
+
   return (
     <div className="history-page">
       <div className="history-header history-header-actions">
@@ -224,10 +267,38 @@ function VehicleCheckHistory() {
         </div>
       </div>
 
+<div className="history-filters">
+  <input
+    type="date"
+    value={searchDate}
+    onChange={(e) => setSearchDate(e.target.value)}
+    className="history-date-filter"
+  />
+
+  <input
+    type="text"
+    placeholder="Buscar patente..."
+    value={searchPatent}
+    onChange={(e) => setSearchPatent(e.target.value)}
+    className="history-search-input"
+  />
+
+  <button
+    type="button"
+    className="history-clear-filter"
+    onClick={() => {
+      setSearchDate("");
+      setSearchPatent("");
+    }}
+  >
+    Limpiar filtros
+  </button>
+</div>
+
       <div className="history-card">
         {loading ? (
-          <p>Cargando historial...</p>
-        ) : records.length === 0 ? (
+  <p>Cargando historial...</p>
+) : filteredRecords.length === 0 ? (
           <div className="history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
@@ -235,7 +306,7 @@ function VehicleCheckHistory() {
           </div>
         ) : (
           <div className="history-list">
-            {records.map((record) => (
+  {filteredRecords.map((record) => (
               <div className="history-row" key={record.id}>
                 <div className="history-icon">
                   <Car size={22} />
