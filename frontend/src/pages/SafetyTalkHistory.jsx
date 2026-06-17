@@ -99,6 +99,8 @@ function SafetyTalkHistory() {
   const user = useMemo(() => getUser(), []);
   const role = String(user?.role || "").toUpperCase();
 
+  const isSuperadmin = role === "SUPERADMIN";
+
   const isReviewer =
     role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
@@ -351,7 +353,7 @@ function SafetyTalkHistory() {
                       Vista previa PDF
                     </button>
 
-                    {isReviewer && (
+                    {isSuperadmin && (
                       <button
                         className="history-delete-button"
                         onClick={() => askDeleteRecord(record)}
@@ -576,7 +578,7 @@ function SafetyTalkHistory() {
                 Vista previa PDF
               </button>
 
-              {isReviewer && (
+              {isSuperadmin && (
                 <button
                   type="button"
                   className="history-delete-button detail-delete-button"
