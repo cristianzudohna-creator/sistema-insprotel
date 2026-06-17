@@ -12,11 +12,16 @@ import {
   FileDown,
   ShieldCheck,
   Users,
+  MapPin,
+  ClipboardList,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 
 import "./SafetyTalkHistory.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function getToken() {
   return (
@@ -53,8 +58,38 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString("es-CL");
 }
 
-function formatType(value) {
-  return String(value || "").replaceAll("_", " ").trim();
+function formatTime(value) {
+  if (!value) return "Sin hora";
+  return String(value).slice(0, 5);
+}
+
+function text(value, fallback = "—") {
+  if (value === null || value === undefined || value === "") return fallback;
+  return String(value);
+}
+
+function statusLabel(value) {
+  const status = String(value || "PENDIENTE_FIRMAS").toUpperCase();
+
+  if (status === "PENDIENTE_FIRMAS") return "Pendiente de firmas";
+  if (status === "PENDIENTE_REVISION") return "Pendiente de revisión";
+  if (status === "COMPLETADA") return "Completada";
+  if (status === "APROBADA") return "Aprobada";
+  if (status === "RECHAZADA") return "Rechazada";
+
+  return status.replaceAll("_", " ");
+}
+
+function getSignedCount(record) {
+  return (record.participants || []).filter((item) => item.signatureUrl).length;
+}
+
+function getTitle(record) {
+  return (
+    record.workOrderProject ||
+    record.areaLocationInstallation ||
+    "Reunión previa de seguridad"
+  );
 }
 
 function SafetyTalkHistory() {
@@ -62,7 +97,11 @@ function SafetyTalkHistory() {
   const location = useLocation();
 
   const user = useMemo(() => getUser(), []);
-  const isSuperadmin = String(user?.role || "").toUpperCase() === "SUPERADMIN";
+  const role = String(user?.role || "").toUpperCase();
+
+  const isReviewer =
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
+
   const isAllHistory = location.pathname.includes("historial-todos");
 
   const [records, setRecords] = useState([]);
@@ -110,7 +149,15 @@ function SafetyTalkHistory() {
       }
 
       const data = await response.json();
-      setRecords(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+
+      const filteredList = isAllHistory
+        ? list.filter(
+            (item) => String(item.status || "").toUpperCase() === "COMPLETADA",
+          )
+        : list;
+
+      setRecords(filteredList);
     } catch (error) {
       console.error(error);
       alert("Error cargando historial");
@@ -143,7 +190,7 @@ function SafetyTalkHistory() {
       );
 
       if (!response.ok) {
-        throw new Error("Error eliminando charla");
+        throw new Error("Error eliminando reunión");
       }
 
       setRecords((prev) =>
@@ -157,15 +204,15 @@ function SafetyTalkHistory() {
       setRecordToDelete(null);
     } catch (error) {
       console.error(error);
-      alert("Error eliminando charla ❌");
+      alert("Error eliminando reunión ❌");
     } finally {
       setDeletingId(null);
     }
   }
 
   useEffect(() => {
-    if (isAllHistory && !isSuperadmin) {
-      alert("No tienes permiso para ver todas las charlas");
+    if (isAllHistory && !isReviewer) {
+      alert("No tienes permiso para ver todas las reuniones");
       navigate("/charlas/historial");
       return;
     }
@@ -179,19 +226,19 @@ function SafetyTalkHistory() {
         <div>
           <h2>
             {isAllHistory
-              ? "Historial General Charlas de Seguridad"
-              : "Mis Charlas de Seguridad"}
+              ? "Historial General Reuniones de Seguridad"
+              : "Mis Reuniones de Seguridad"}
           </h2>
 
           <p>
             {isAllHistory
-              ? "Todos los registros guardados por los usuarios."
-              : "Registros guardados de tus charlas y participantes."}
+              ? "Charlas terminadas disponibles para revisión."
+              : "Registros guardados de reuniones previas de seguridad."}
           </p>
         </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {isSuperadmin && !isAllHistory && (
+          {isReviewer && !isAllHistory && (
             <button
               type="button"
               className="history-back-button"
@@ -209,7 +256,7 @@ function SafetyTalkHistory() {
               onClick={() => navigate("/charlas/historial")}
             >
               <User size={18} />
-              Ver Mis Charlas
+              Ver Mis Reuniones
             </button>
           )}
 
@@ -231,77 +278,96 @@ function SafetyTalkHistory() {
           <div className="history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
-            <p>Las charlas guardadas aparecerán aquí.</p>
+            <p>Las reuniones guardadas aparecerán aquí.</p>
           </div>
         ) : (
           <div className="history-list">
-            {records.map((record) => (
-              <div className="history-row" key={record.id}>
-                <div className="history-icon">
-                  <ShieldCheck size={22} />
-                </div>
+            {records.map((record) => {
+              const signedCount = getSignedCount(record);
+              const totalParticipants = record.participants?.length || 0;
 
-                <div className="history-info">
-                  <h3>{record.topicTitle || "Sin tema"}</h3>
+              return (
+                <div className="history-row" key={record.id}>
+                  <div className="history-icon">
+                    <ShieldCheck size={22} />
+                  </div>
 
-                  <div className="history-meta">
-                    <span>
-                      <Calendar size={15} />
-                      {formatDate(record.date)}
-                    </span>
+                  <div className="history-info">
+                    <h3>{getTitle(record)}</h3>
 
-                    <span>
-                      <User size={15} />
-                      {record.reporterName || "Sin relator"}
-                    </span>
+                    <div className="history-meta">
+                      <span>
+                        <Calendar size={15} />
+                        {formatDate(record.date)}
+                      </span>
 
-                    <span>
-                      <Users size={15} />
-                      {record.participants?.length || 0} participantes
-                    </span>
+                      <span>
+                        <Clock size={15} />
+                        {formatTime(record.meetingTime)}
+                      </span>
 
-                    {isAllHistory && (
                       <span>
                         <User size={15} />
-                        Creado por: {record.user?.name || "Usuario"}
+                        {record.createdByName || record.user?.name || "Usuario"}
                       </span>
+
+                      <span>
+                        <Users size={15} />
+                        {totalParticipants} participantes
+                      </span>
+
+                      <span>
+                        <CheckCircle2 size={15} />
+                        {signedCount}/{totalParticipants} firmas
+                      </span>
+
+                      <span>{statusLabel(record.status)}</span>
+
+                      {isAllHistory && (
+                        <span>
+                          <User size={15} />
+                          Creado por: {record.user?.name || "Usuario"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="history-actions">
+                    <button
+                      className="history-action"
+                      onClick={() => setSelectedRecord(record)}
+                      type="button"
+                    >
+                      <Eye size={17} />
+                      Ver detalle
+                    </button>
+
+                    <button
+                      className="history-pdf-button"
+                      onClick={() => openPdfPreview(record)}
+                      type="button"
+                    >
+                      <FileDown size={17} />
+                      Vista previa PDF
+                    </button>
+
+                    {isReviewer && (
+                      <button
+                        className="history-delete-button"
+                        onClick={() => askDeleteRecord(record)}
+                        disabled={deletingId === record.id}
+                        type="button"
+                      >
+                        <Trash2 size={17} />
+                        {deletingId === record.id
+                          ? "Eliminando..."
+                          : "Eliminar"}
+                      </button>
                     )}
                   </div>
                 </div>
-
-                <div className="history-actions">
-                  <button
-                    className="history-action"
-                    onClick={() => setSelectedRecord(record)}
-                    type="button"
-                  >
-                    <Eye size={17} />
-                    Ver detalle
-                  </button>
-
-                  <button
-                    className="history-pdf-button"
-                    onClick={() => openPdfPreview(record)}
-                    type="button"
-                  >
-                    <FileDown size={17} />
-                    Vista previa PDF
-                  </button>
-
-                  {(isSuperadmin || !isAllHistory) && (
-                    <button
-                      className="history-delete-button"
-                      onClick={() => askDeleteRecord(record)}
-                      disabled={deletingId === record.id}
-                      type="button"
-                    >
-                      <Trash2 size={17} />
-                      {deletingId === record.id ? "Eliminando..." : "Eliminar"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -311,10 +377,9 @@ function SafetyTalkHistory() {
           <div className="detail-modal">
             <div className="detail-header">
               <div>
-                <h3>Detalle Charla</h3>
+                <h3>Detalle Reunión de Seguridad</h3>
                 <p>
-                  Tema:{" "}
-                  <strong>{selectedRecord.topicTitle || "Sin tema"}</strong>
+                  <strong>{getTitle(selectedRecord)}</strong>
                 </p>
               </div>
 
@@ -334,18 +399,47 @@ function SafetyTalkHistory() {
               </div>
 
               <div>
-                <span>Tipo</span>
-                <strong>{formatType(selectedRecord.type)}</strong>
+                <span>Hora</span>
+                <strong>{formatTime(selectedRecord.meetingTime)}</strong>
               </div>
 
               <div>
-                <span>Relator</span>
-                <strong>{selectedRecord.reporterName || "Sin relator"}</strong>
+                <span>Realizada por</span>
+                <strong>
+                  {selectedRecord.createdByName ||
+                    selectedRecord.user?.name ||
+                    "Usuario"}
+                </strong>
               </div>
 
               <div>
-                <span>Sección / Obra</span>
-                <strong>{selectedRecord.sectionOrWork || "—"}</strong>
+                <span>Estado</span>
+                <strong>{statusLabel(selectedRecord.status)}</strong>
+              </div>
+
+              <div>
+                <span>Área / Lugar / Instalación</span>
+                <strong>{text(selectedRecord.areaLocationInstallation)}</strong>
+              </div>
+
+              <div>
+                <span>Orden de trabajo / Proyecto</span>
+                <strong>{text(selectedRecord.workOrderProject)}</strong>
+              </div>
+
+              <div>
+                <span>Permiso de Faena / Actividad</span>
+                <strong>{text(selectedRecord.workPermitActivity)}</strong>
+              </div>
+
+              <div>
+                <span>N° Personas</span>
+                <strong>
+                  {text(
+                    selectedRecord.peopleCount ||
+                      selectedRecord.participants?.length,
+                  )}
+                </strong>
               </div>
 
               {isAllHistory && (
@@ -357,14 +451,89 @@ function SafetyTalkHistory() {
             </div>
 
             <div className="detail-section">
-              <h4>Detalle charla</h4>
+              <h4>
+                <ClipboardList size={18} />
+                Se realizarán trabajos de
+              </h4>
               <p className="detail-observation">
-                {selectedRecord.topicDetails || "Sin detalle"}
+                {text(selectedRecord.worksToDo, "Sin trabajos registrados")}
               </p>
             </div>
 
             <div className="detail-section">
-              <h4>Participantes</h4>
+              <h4>
+                <MapPin size={18} />
+                Jefe de Faena / Empresa
+              </h4>
+              <div className="detail-grid">
+                <div>
+                  <span>Jefe de Faena o Brigada</span>
+                  <strong>{text(selectedRecord.foremanOrBrigadeName)}</strong>
+                </div>
+
+                <div>
+                  <span>Empresa</span>
+                  <strong>{text(selectedRecord.foremanCompany)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="detail-section">
+              <h4>
+                <ShieldCheck size={18} />
+                Tipo de trabajos
+              </h4>
+              <p className="detail-observation">
+                {text(selectedRecord.workTypes, "Sin tipo de trabajos")}
+              </p>
+            </div>
+
+            <div className="detail-section">
+              <h4>
+                <AlertTriangle size={18} />
+                Riesgos previstos más significativos
+              </h4>
+              <p className="detail-observation">
+                {text(selectedRecord.significantRisks, "Sin riesgos")}
+              </p>
+            </div>
+
+            <div className="detail-section">
+              <h4>Accidente e incidente analizado</h4>
+              <p className="detail-observation">
+                {text(selectedRecord.analyzedAccident, "Sin análisis")}
+              </p>
+            </div>
+
+            <div className="detail-section">
+              <h4>
+                <CheckCircle2 size={18} />
+                Medidas de control
+              </h4>
+
+              <div className="detail-items">
+                {Array.from({ length: 12 }, (_, index) => {
+                  const value = selectedRecord[`controlMeasure${index + 1}`];
+
+                  return (
+                    <div key={index} className="detail-item">
+                      <div>
+                        <CheckCircle2 size={18} />
+                        <strong>{index + 1}.-</strong>
+                      </div>
+
+                      <p>{text(value)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="detail-section">
+              <h4>
+                <Users size={18} />
+                Participantes
+              </h4>
 
               {selectedRecord.participants?.length > 0 ? (
                 <div className="detail-items">
@@ -376,6 +545,17 @@ function SafetyTalkHistory() {
                       </div>
 
                       <span>{participant.rut || "Sin RUT"}</span>
+
+                      <p>
+                        Descanso:{" "}
+                        <strong>
+                          {participant.compliesRest ? "Sí" : "No"}
+                        </strong>{" "}
+                        · Firma:{" "}
+                        <strong>
+                          {participant.signatureUrl ? "Firmado" : "Pendiente"}
+                        </strong>
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -396,7 +576,7 @@ function SafetyTalkHistory() {
                 Vista previa PDF
               </button>
 
-              {(isSuperadmin || !isAllHistory) && (
+              {isReviewer && (
                 <button
                   type="button"
                   className="history-delete-button detail-delete-button"
@@ -406,7 +586,7 @@ function SafetyTalkHistory() {
                   <Trash2 size={17} />
                   {deletingId === selectedRecord.id
                     ? "Eliminando..."
-                    : "Eliminar Charla"}
+                    : "Eliminar Reunión"}
                 </button>
               )}
             </div>
@@ -421,11 +601,11 @@ function SafetyTalkHistory() {
               <Trash2 size={38} />
             </div>
 
-            <h3>¿Eliminar charla?</h3>
+            <h3>¿Eliminar reunión?</h3>
 
             <p>
-              Estás a punto de eliminar la charla{" "}
-              <strong>“{recordToDelete.topicTitle || "Sin tema"}”</strong>.
+              Estás a punto de eliminar la reunión{" "}
+              <strong>“{getTitle(recordToDelete)}”</strong>.
             </p>
 
             <p className="delete-warning">Esta acción no se puede deshacer.</p>

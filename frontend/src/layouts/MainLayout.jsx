@@ -20,26 +20,43 @@ import {
   Shield,
   ClipboardCheck,
   HardHat,
+  PenLine,
 } from "lucide-react";
 
 import { getUser, logout } from "../auth/auth";
+import { registerPushNotifications } from "../firebase";
 
 function MainLayout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
+
   useEffect(() => {
-  if (menuOpen) {
-    document.body.style.overflow = "hidden";
-  } else {
-    document.body.style.overflow = "";
-  }
+    registerPushNotifications().catch(console.error);
+  }, []);
 
-  return () => {
-    document.body.style.overflow = "";
-  };
-}, [menuOpen]);
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
   const user = getUser();
+  const role = String(user?.role || "").toUpperCase();
 
-  const isSuperadmin = user?.role === "SUPERADMIN";
+  const isSuperadmin = role === "SUPERADMIN";
+
+  const canCreateSafetyTalks =
+    role === "SUPERADMIN" || role === "TECNICO" || role === "CONDUCTOR";
+
+  const canSignSafetyTalks = role === "TECNICO" || role === "CONDUCTOR";
+
+  const canReviewSafetyTalks =
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
   function closeMenu() {
     setMenuOpen(false);
@@ -78,7 +95,7 @@ function MainLayout({ children }) {
             </NavLink>
           )}
 
-          {isSuperadmin && (
+          {canCreateSafetyTalks && (
             <NavLink
               to="/charlas"
               onClick={closeMenu}
@@ -91,16 +108,44 @@ function MainLayout({ children }) {
             </NavLink>
           )}
 
-          <NavLink
-            to="/check-vehiculos"
-            onClick={closeMenu}
-            className={({ isActive }) =>
-              isActive ? "menu-item active-link" : "menu-item"
-            }
-          >
-            <Car size={20} />
-            <span>Check Vehículos</span>
-          </NavLink>
+          {canSignSafetyTalks && (
+            <NavLink
+              to="/charlas/pendientes"
+              onClick={closeMenu}
+              className={({ isActive }) =>
+                isActive ? "menu-item active-link" : "menu-item"
+              }
+            >
+              <PenLine size={20} />
+              <span>Charlas Pendientes de Firma</span>
+            </NavLink>
+          )}
+
+          {canReviewSafetyTalks && (
+            <NavLink
+              to="/charlas/historial-todos"
+              onClick={closeMenu}
+              className={({ isActive }) =>
+                isActive ? "menu-item active-link" : "menu-item"
+              }
+            >
+              <FileText size={20} />
+              <span>Charlas Terminadas</span>
+            </NavLink>
+          )}
+
+          {isSuperadmin && (
+            <NavLink
+              to="/check-vehiculos"
+              onClick={closeMenu}
+              className={({ isActive }) =>
+                isActive ? "menu-item active-link" : "menu-item"
+              }
+            >
+              <Car size={20} />
+              <span>Check Vehículos</span>
+            </NavLink>
+          )}
 
           {isSuperadmin && (
             <>

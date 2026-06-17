@@ -10,6 +10,7 @@ import UsersAdmin from "./pages/UsersAdmin";
 import ChangePassword from "./pages/ChangePassword";
 import SafetyTalks from "./pages/SafetyTalks";
 import SafetyTalkHistory from "./pages/SafetyTalkHistory";
+import SafetyTalkPendingSignatures from "./pages/SafetyTalkPendingSignatures";
 import HarnessCheck from "./pages/HarnessCheck";
 import HarnessCheckHistory from "./pages/HarnessCheckHistory";
 import LadderCheck from "./pages/LadderCheck";
@@ -68,13 +69,8 @@ function AppRoutes() {
           }
         />
 
-        {/* CHECK VEHICULOS */}
         <Route path="/check-vehiculos" element={<VehicleCheckList />} />
-
-        <Route
-          path="/check-vehiculos/historial"
-          element={<VehicleCheckHistory />}
-        />
+        <Route path="/check-vehiculos/historial" element={<VehicleCheckHistory />} />
 
         <Route
           path="/check-vehiculos/historial-todos"
@@ -86,31 +82,13 @@ function AppRoutes() {
         />
 
         {/* CHARLAS */}
-        <Route
-          path="/charlas"
-          element={
-            <SuperadminRoute>
-              <SafetyTalks />
-            </SuperadminRoute>
-          }
-        />
-
-        <Route
-          path="/charlas/historial"
-          element={
-            <SuperadminRoute>
-              <SafetyTalkHistory />
-            </SuperadminRoute>
-          }
-        />
+        <Route path="/charlas" element={<SafetyTalks />} />
+        <Route path="/charlas/historial" element={<SafetyTalkHistory />} />
+        <Route path="/charlas/pendientes" element={<SafetyTalkPendingSignatures />} />
 
         <Route
           path="/charlas/historial-todos"
-          element={
-            <SuperadminRoute>
-              <SafetyTalkHistory />
-            </SuperadminRoute>
-          }
+          element={<SafetyTalkHistory />}
         />
 
         {/* ARNES */}

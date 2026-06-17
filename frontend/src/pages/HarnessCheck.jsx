@@ -14,7 +14,7 @@ import {
 
 import "./HarnessCheck.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const CHECK_ITEMS = [
   "El arnés se encuentra limpio y sin daños visibles.",

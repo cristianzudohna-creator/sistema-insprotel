@@ -15,7 +15,7 @@ import {
 
 import "./ToolsEppCheckHistory.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function getToken() {
   return localStorage.getItem("token") || localStorage.getItem("access_token") || "";

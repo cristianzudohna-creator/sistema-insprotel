@@ -14,6 +14,7 @@ import { LadderCheckModule } from "./ladder-check/ladder-check.module";
 import { ScissorLadderCheckModule } from "./scissor-ladder-check/scissor-ladder-check.module";
 import { ToolsEppCheckModule } from "./tools-epp-check/tools-epp-check.module";
 import { ToolsDriverCheckModule } from "./tools-driver-check/tools-driver-check.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ToolsDriverCheckModule } from "./tools-driver-check/tools-driver-check.
     ScissorLadderCheckModule,
     ToolsEppCheckModule,
     ToolsDriverCheckModule,
+    NotificationsModule,
   ],
 
   controllers: [AppController],

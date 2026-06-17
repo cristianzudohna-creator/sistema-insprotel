@@ -25,6 +25,16 @@ export class UsersController {
     }
   }
 
+  @Post("fcm-token")
+  async saveFcmToken(@Req() req: any, @Body() body: any) {
+    return this.usersService.saveFcmToken(req.user.id, body.token);
+  }
+
+  @Get("workers")
+  async findWorkers() {
+    return this.usersService.findWorkers();
+  }
+
   @Get()
   async findAll(@Req() req: any) {
     this.onlySuperadmin(req);

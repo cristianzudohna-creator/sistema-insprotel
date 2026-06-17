@@ -8,35 +8,58 @@ import {
   Users,
   ShieldCheck,
   History,
-  CheckCircle2,
+  Check,
   PenLine,
   RotateCcw,
   Lock,
   Unlock,
-  X,
-  Check,
 } from "lucide-react";
 
 import "./SafetyTalks.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-const TALK_TYPES = [
-  { value: "CHARLA_5_MINUTOS", label: "Charla 5 minutos" },
-  { value: "CHARLA_OPERACIONAL", label: "Charla operacional" },
-  { value: "REINSTRUCCION", label: "Reinstrucción" },
-  {
-    value: "DIFUSION_PROCEDIMIENTOS",
-    label: "Difusión de procedimientos",
-  },
-];
+function todayInputDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function currentInputTime() {
+  return new Date().toTimeString().slice(0, 5);
+}
+
+function getLoggedUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function getToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
+    ""
+  );
+}
+
+function getCreatorRole(user) {
+  const role = String(user?.role || "").toUpperCase();
+
+  if (role === "CONDUCTOR") return "CONDUCTOR";
+
+  return "TECNICO";
+}
 
 function createParticipant() {
   return {
+    userId: "",
     name: "",
     rut: "",
-    signatureDataUrl: "",
-    signatureLocked: false,
+    role: "",
+    search: "",
+    isSearching: false,
+    compliesRest: true,
   };
 }
 
@@ -75,9 +98,7 @@ function getCroppedSignatureDataUrl(canvas) {
       const b = data[index + 2];
       const a = data[index + 3];
 
-      const isInk = a > 0 && (r < 245 || g < 245 || b < 245);
-
-      if (isInk) {
+      if (a > 0 && (r < 245 || g < 245 || b < 245)) {
         hasInk = true;
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
@@ -87,9 +108,7 @@ function getCroppedSignatureDataUrl(canvas) {
     }
   }
 
-  if (!hasInk) {
-    return canvas.toDataURL("image/png");
-  }
+  if (!hasInk) return canvas.toDataURL("image/png");
 
   const padding = 28;
 
@@ -102,15 +121,12 @@ function getCroppedSignatureDataUrl(canvas) {
   const cropHeight = maxY - minY;
 
   const croppedCanvas = document.createElement("canvas");
-
   croppedCanvas.width = cropWidth;
   croppedCanvas.height = cropHeight;
 
   const croppedCtx = croppedCanvas.getContext("2d");
-
   croppedCtx.fillStyle = "#ffffff";
   croppedCtx.fillRect(0, 0, cropWidth, cropHeight);
-
   croppedCtx.drawImage(
     canvas,
     minX,
@@ -128,21 +144,16 @@ function getCroppedSignatureDataUrl(canvas) {
 
 function SafetyTalks() {
   const navigate = useNavigate();
-
   const canvasRef = useRef(null);
-  const modalCanvasRef = useRef(null);
   const drawingRef = useRef(false);
-  const modalDrawingRef = useRef(false);
+
+  const user = getLoggedUser();
 
   const [loading, setLoading] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [signatureLocked, setSignatureLocked] = useState(false);
-
-  const [participantSigningIndex, setParticipantSigningIndex] = useState(null);
-  const [participantModalHasSignature, setParticipantModalHasSignature] =
-    useState(false);
-  const [participantModalLocked, setParticipantModalLocked] = useState(false);
+  const [workers, setWorkers] = useState([]);
 
   const [participants, setParticipants] = useState([
     createParticipant(),
@@ -150,32 +161,68 @@ function SafetyTalks() {
   ]);
 
   const [form, setForm] = useState({
-    sectionOrWork: "",
-    reporterName: "",
-    type: ["CHARLA_5_MINUTOS"],
-    topicTitle: "",
-    topicDetails: "",
+    date: todayInputDate(),
+    meetingTime: currentInputTime(),
+    areaLocationInstallation: "",
+    workOrderProject: "",
+    workPermitActivity: "",
+    worksToDo: "",
+    foremanOrBrigadeName: "",
+    foremanCompany: "INSPROTEL",
+    peopleCount: "",
+    workTypes: "",
+    significantRisks: "",
+    analyzedAccident: "",
+    creatorRole: getCreatorRole(user),
+    createdByName: user?.name || "",
+    createdByRut: user?.rut || "",
+    controlMeasure1: "",
+    controlMeasure2: "",
+    controlMeasure3: "",
+    controlMeasure4: "",
+    controlMeasure5: "",
+    controlMeasure6: "",
+    controlMeasure7: "",
+    controlMeasure8: "",
+    controlMeasure9: "",
+    controlMeasure10: "",
+    controlMeasure11: "",
+    controlMeasure12: "",
   });
 
   useEffect(() => {
     setTimeout(prepareCanvas, 100);
-
     window.addEventListener("resize", prepareCanvas);
+    loadWorkers();
 
     return () => {
       window.removeEventListener("resize", prepareCanvas);
     };
   }, []);
 
-  useEffect(() => {
-    if (participantSigningIndex !== null) {
-      setTimeout(prepareModalCanvas, 100);
+  async function loadWorkers() {
+    try {
+      const response = await fetch(`${API_URL}/users/workers`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Error cargando trabajadores");
+      }
+
+      const data = await response.json();
+      setWorkers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setWorkers([]);
+      alert("Error cargando trabajadores");
     }
-  }, [participantSigningIndex]);
+  }
 
   function prepareCanvas() {
     const canvas = canvasRef.current;
-
     if (!canvas) return;
 
     const parent = canvas.parentElement;
@@ -190,7 +237,6 @@ function SafetyTalks() {
     canvas.style.height = `${height}px`;
 
     const ctx = canvas.getContext("2d");
-
     ctx.scale(ratio, ratio);
     ctx.lineWidth = 2.4;
     ctx.lineCap = "round";
@@ -201,51 +247,8 @@ function SafetyTalks() {
 
     if (previous) {
       const img = new Image();
-
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, width, height);
-      };
-
+      img.onload = () => ctx.drawImage(img, 0, 0, width, height);
       img.src = previous;
-    }
-  }
-
-  function prepareModalCanvas() {
-    const canvas = modalCanvasRef.current;
-
-    if (!canvas) return;
-
-    const parent = canvas.parentElement;
-    const width = parent?.clientWidth || 600;
-    const height = window.innerWidth <= 768 ? 180 : 220;
-    const ratio = window.devicePixelRatio || 1;
-
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-
-    const ctx = canvas.getContext("2d");
-
-    ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2.4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#111827";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-
-    const currentSignature =
-      participants[participantSigningIndex]?.signatureDataUrl;
-
-    if (currentSignature) {
-      const img = new Image();
-
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, width, height);
-      };
-
-      img.src = currentSignature;
     }
   }
 
@@ -269,7 +272,6 @@ function SafetyTalks() {
     const point = getCanvasPoint(event, canvas);
 
     drawingRef.current = true;
-
     ctx.beginPath();
     ctx.moveTo(point.x, point.y);
   }
@@ -295,14 +297,12 @@ function SafetyTalks() {
 
   function clearSignature() {
     const canvas = canvasRef.current;
-
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
     const rect = canvas.getBoundingClientRect();
 
     ctx.clearRect(0, 0, rect.width, rect.height);
-
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
@@ -310,120 +310,11 @@ function SafetyTalks() {
     setSignatureLocked(false);
   }
 
-  function startParticipantSignature(event) {
-    if (participantModalLocked) return;
-
-    event.preventDefault();
-
-    const canvas = modalCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const point = getCanvasPoint(event, canvas);
-
-    modalDrawingRef.current = true;
-
-    ctx.beginPath();
-    ctx.moveTo(point.x, point.y);
-  }
-
-  function drawParticipantSignature(event) {
-    if (!modalDrawingRef.current || participantModalLocked) return;
-
-    event.preventDefault();
-
-    const canvas = modalCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const point = getCanvasPoint(event, canvas);
-
-    ctx.lineTo(point.x, point.y);
-    ctx.stroke();
-
-    setParticipantModalHasSignature(true);
-  }
-
-  function stopParticipantSignature() {
-    modalDrawingRef.current = false;
-  }
-
-  function clearParticipantSignature() {
-    const canvas = modalCanvasRef.current;
-
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, rect.width, rect.height);
-
-    setParticipantModalHasSignature(false);
-    setParticipantModalLocked(false);
-  }
-
-  function openParticipantSignature(index) {
-    setParticipantSigningIndex(index);
-    setParticipantModalHasSignature(
-      Boolean(participants[index]?.signatureDataUrl),
-    );
-    setParticipantModalLocked(Boolean(participants[index]?.signatureLocked));
-  }
-
-  function closeParticipantSignature() {
-    setParticipantSigningIndex(null);
-    setParticipantModalHasSignature(false);
-    setParticipantModalLocked(false);
-  }
-
-  function saveParticipantSignature() {
-    if (!participantModalHasSignature) {
-      alert("El participante debe firmar antes de guardar.");
-      return;
-    }
-
-    if (!participantModalLocked) {
-      alert("Debes bloquear la firma del participante.");
-      return;
-    }
-
-    const canvas = modalCanvasRef.current;
-    const croppedSignatureDataUrl = getCroppedSignatureDataUrl(canvas);
-
-    setParticipants((prev) =>
-      prev.map((item, index) =>
-        index === participantSigningIndex
-          ? {
-              ...item,
-              signatureDataUrl: croppedSignatureDataUrl,
-              signatureLocked: true,
-            }
-          : item,
-      ),
-    );
-
-    closeParticipantSignature();
-  }
-
   function updateField(field, value) {
     setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
-  }
-
-  function toggleTalkType(value) {
-    setForm((prev) => {
-      const exists = prev.type.includes(value);
-
-      const nextTypes = exists
-        ? prev.type.filter((item) => item !== value)
-        : [...prev.type, value];
-
-      return {
-        ...prev,
-        type: nextTypes.length > 0 ? nextTypes : prev.type,
-      };
-    });
   }
 
   function updateParticipant(index, field, value) {
@@ -439,7 +330,80 @@ function SafetyTalks() {
     );
   }
 
+  function handleParticipantSearch(index, value) {
+    setParticipants((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              userId: "",
+              name: "",
+              rut: "",
+              role: "",
+              search: value,
+              isSearching: true,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function clearParticipant(index) {
+    setParticipants((prev) =>
+      prev.map((item, i) => (i === index ? createParticipant() : item)),
+    );
+  }
+
+  function getWorkerSuggestions(participant) {
+    const search = String(participant.search || "").trim().toLowerCase();
+
+    if (search.length < 2 || participant.userId) return [];
+
+    return workers
+      .filter((worker) => {
+        const name = String(worker.name || "").toLowerCase();
+        const rut = String(worker.rut || "").toLowerCase();
+
+        return name.includes(search) || rut.includes(search);
+      })
+      .slice(0, 8);
+  }
+
+  function selectWorker(index, worker) {
+    const alreadySelected = participants.some(
+      (participant, participantIndex) =>
+        participantIndex !== index &&
+        String(participant.userId) === String(worker.id),
+    );
+
+    if (alreadySelected) {
+      alert("Este trabajador ya fue agregado como participante.");
+      return;
+    }
+
+    setParticipants((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              userId: worker.id,
+              name: worker.name || "",
+              rut: worker.rut || "",
+              role: worker.role || "",
+              search: worker.name || "",
+              isSearching: false,
+            }
+          : item,
+      ),
+    );
+  }
+
   function addParticipant() {
+    if (participants.length >= 12) {
+      alert("Máximo 12 participantes.");
+      return;
+    }
+
     setParticipants((prev) => [...prev, createParticipant()]);
   }
 
@@ -449,11 +413,33 @@ function SafetyTalks() {
 
   function resetForm() {
     setForm({
-      sectionOrWork: "",
-      reporterName: "",
-      type: ["CHARLA_5_MINUTOS"],
-      topicTitle: "",
-      topicDetails: "",
+      date: todayInputDate(),
+      meetingTime: currentInputTime(),
+      areaLocationInstallation: "",
+      workOrderProject: "",
+      workPermitActivity: "",
+      worksToDo: "",
+      foremanOrBrigadeName: "",
+      foremanCompany: "INSPROTEL",
+      peopleCount: "",
+      workTypes: "",
+      significantRisks: "",
+      analyzedAccident: "",
+      creatorRole: getCreatorRole(user),
+      createdByName: user?.name || "",
+      createdByRut: user?.rut || "",
+      controlMeasure1: "",
+      controlMeasure2: "",
+      controlMeasure3: "",
+      controlMeasure4: "",
+      controlMeasure5: "",
+      controlMeasure6: "",
+      controlMeasure7: "",
+      controlMeasure8: "",
+      controlMeasure9: "",
+      controlMeasure10: "",
+      controlMeasure11: "",
+      controlMeasure12: "",
     });
 
     setParticipants([createParticipant(), createParticipant()]);
@@ -474,28 +460,20 @@ function SafetyTalks() {
     e.preventDefault();
 
     try {
-      const filledParticipants = participants.filter(
-        (item) => item.name || item.rut,
-      );
+      const filledParticipants = participants.filter((item) => item.userId);
 
-      const unsignedParticipant = filledParticipants.find(
-        (item) => !item.signatureDataUrl || !item.signatureLocked,
-      );
-
-      if (unsignedParticipant) {
-        alert(
-          "Todos los participantes registrados deben firmar y bloquear su firma.",
-        );
+      if (filledParticipants.length === 0) {
+        alert("Debes seleccionar al menos un trabajador participante.");
         return;
       }
 
       if (!hasSignature) {
-        alert("Debes registrar la firma del relator.");
+        alert("Debes registrar la firma de quien realiza la reunión.");
         return;
       }
 
       if (!signatureLocked) {
-        alert("Debes bloquear la firma del relator antes de guardar.");
+        alert("Debes bloquear la firma antes de guardar.");
         return;
       }
 
@@ -506,72 +484,74 @@ function SafetyTalks() {
 
       const signatureFile = dataUrlToFile(
         croppedSignatureDataUrl,
-        "firma-relator.png",
+        "firma-creador-charla.png",
       );
 
       const formData = new FormData();
 
-      formData.append("sectionOrWork", form.sectionOrWork);
-      formData.append("reporterName", form.reporterName);
-      formData.append("type", form.type.join(","));
-      formData.append("topicTitle", form.topicTitle);
-      formData.append("topicDetails", form.topicDetails);
+      Object.entries({
+        ...form,
+        date: todayInputDate(),
+        meetingTime: currentInputTime(),
+        creatorRole: getCreatorRole(user),
+        createdByName: user?.name || form.createdByName || "",
+        createdByRut: user?.rut || form.createdByRut || "",
+      }).forEach(([key, value]) => {
+        formData.append(key, value ?? "");
+      });
+
+      formData.append(
+        "peopleCount",
+        String(Number(form.peopleCount || filledParticipants.length)),
+      );
 
       formData.append(
         "participants",
         JSON.stringify(
           filledParticipants.map((item) => ({
+            userId: item.userId,
             name: item.name,
             rut: item.rut,
+            compliesRest: item.compliesRest,
           })),
         ),
       );
 
       formData.append("reporterSignature", signatureFile);
 
-      filledParticipants.forEach((participant, index) => {
-        const participantFile = dataUrlToFile(
-          participant.signatureDataUrl,
-          `firma-participante-${index + 1}.png`,
-        );
-
-        formData.append("participantSignatures", participantFile);
+      const response = await fetch(`${API_URL}/safety-talks`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: formData,
       });
 
-      const token =
-  localStorage.getItem("token") ||
-  localStorage.getItem("access_token") ||
-  "";
-
-const response = await fetch(`${API_URL}/safety-talks`, {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-  body: formData,
-});
-
       if (!response.ok) {
-        throw new Error("Error guardando charla");
+        throw new Error("Error guardando reunión");
       }
 
       await response.json();
-
       setSuccessModalOpen(true);
     } catch (error) {
       console.error(error);
-      alert("Error guardando charla");
+      alert("Error guardando reunión de seguridad");
     } finally {
       setLoading(false);
     }
   }
 
+  const controlMeasures = Array.from({ length: 12 }, (_, index) => ({
+    key: `controlMeasure${index + 1}`,
+    number: index + 1,
+  }));
+
   return (
     <div className="safety-talk-page">
       <div className="safety-talk-header">
         <div>
-          <h1>Charlas de Seguridad</h1>
-          <p>Registro digital de charlas y participantes</p>
+          <h1>Reunión Previa de Seguridad en el Trabajo</h1>
+          <p>Formulario digital según formato Insprotel</p>
         </div>
 
         <div className="safety-header-actions">
@@ -594,129 +574,237 @@ const response = await fetch(`${API_URL}/safety-talks`, {
         <div className="safety-card">
           <div className="card-title">
             <FileText size={18} />
-            Información General
+            Encabezado
           </div>
 
-          <div className="field">
-            <label>Tipo de charla</label>
+          <div className="grid-2">
+            <div className="field">
+              <label>Área, lugar, instalación</label>
+              <input
+                type="text"
+                value={form.areaLocationInstallation}
+                onChange={(e) =>
+                  updateField("areaLocationInstallation", e.target.value)
+                }
+              />
+            </div>
 
-            <div className="talk-type-options">
-              {TALK_TYPES.map((item) => (
-                <label key={item.value} className="talk-type-option">
-                  <input
-                    type="checkbox"
-                    checked={form.type.includes(item.value)}
-                    onChange={() => toggleTalkType(item.value)}
-                  />
+            <div className="field">
+              <label>Orden de trabajo / Proyecto</label>
+              <input
+                type="text"
+                value={form.workOrderProject}
+                onChange={(e) =>
+                  updateField("workOrderProject", e.target.value)
+                }
+              />
+            </div>
 
-                  <span>{item.label}</span>
-                </label>
-              ))}
+            <div className="field">
+              <label>N° Permiso de Faena / Actividad</label>
+              <input
+                type="text"
+                value={form.workPermitActivity}
+                onChange={(e) =>
+                  updateField("workPermitActivity", e.target.value)
+                }
+              />
             </div>
           </div>
 
           <div className="field">
-            <label>Sección / Obra</label>
-
-            <input
-              type="text"
-              value={form.sectionOrWork}
-              onChange={(e) => updateField("sectionOrWork", e.target.value)}
+            <label>Se realizarán trabajos de</label>
+            <textarea
+              rows={4}
+              value={form.worksToDo}
+              onChange={(e) => updateField("worksToDo", e.target.value)}
+              placeholder="- Retiro de acometidas&#10;- Reposición de suministro eléctrico"
             />
           </div>
 
-          <div className="field">
-            <label>Nombre Relator</label>
+          <div className="grid-3">
+            <div className="field">
+              <label>Jefe de Faena o Brigada</label>
+              <input
+                type="text"
+                value={form.foremanOrBrigadeName}
+                onChange={(e) =>
+                  updateField("foremanOrBrigadeName", e.target.value)
+                }
+              />
+            </div>
 
-            <input
-              type="text"
-              value={form.reporterName}
-              onChange={(e) => updateField("reporterName", e.target.value)}
-            />
+            <div className="field">
+              <label>Empresa</label>
+              <input
+                type="text"
+                value={form.foremanCompany}
+                onChange={(e) => updateField("foremanCompany", e.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label>N° Personas</label>
+              <input
+                type="number"
+                value={form.peopleCount}
+                onChange={(e) => updateField("peopleCount", e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="safety-card">
+          <div className="card-title">
+            <ShieldCheck size={18} />
+            Evaluación de riesgos
           </div>
 
           <div className="field">
-            <label>Tema</label>
-
-            <input
-              type="text"
-              value={form.topicTitle}
-              onChange={(e) => updateField("topicTitle", e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <label>Detalle charla</label>
-
+            <label>Tipo de trabajos</label>
             <textarea
               rows={5}
-              value={form.topicDetails}
-              onChange={(e) => updateField("topicDetails", e.target.value)}
+              value={form.workTypes}
+              onChange={(e) => updateField("workTypes", e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label>Riesgos previstos más significativos</label>
+            <textarea
+              rows={5}
+              value={form.significantRisks}
+              onChange={(e) => updateField("significantRisks", e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label>Accidente e incidente analizado</label>
+            <textarea
+              rows={4}
+              value={form.analyzedAccident}
+              onChange={(e) => updateField("analyzedAccident", e.target.value)}
             />
           </div>
         </div>
 
         <div className="safety-card">
           <div className="card-title">
+            <Check size={18} />
+            Medidas de control
+          </div>
+
+          <div className="grid-2">
+            {controlMeasures.map((item) => (
+              <div className="field" key={item.key}>
+                <label>{item.number}.- Medida de control</label>
+                <input
+                  type="text"
+                  value={form[item.key]}
+                  onChange={(e) => updateField(item.key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="safety-card">
+          <div className="card-title">
             <Users size={18} />
-            Participantes
+            Listado e información trabajadores
           </div>
 
           <div className="participants-list">
-            {participants.map((participant, index) => (
-              <div key={index} className="participant-card">
-                <div className="participant-header">
-                  <h3>Participante {index + 1}</h3>
+            {participants.map((participant, index) => {
+              const suggestions = getWorkerSuggestions(participant);
 
-                  {participants.length > 1 && (
-                    <button
-                      type="button"
-                      className="delete-btn"
-                      onClick={() => removeParticipant(index)}
+              return (
+                <div key={index} className="participant-card">
+                  <div className="participant-header">
+                    <h3>Participante {index + 1}</h3>
+
+                    {participants.length > 1 && (
+                      <button
+                        type="button"
+                        className="delete-btn"
+                        onClick={() => removeParticipant(index)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid-3">
+                    <div className="participant-search-wrap">
+                      <input
+                        type="text"
+                        placeholder="Escriba nombre del trabajador"
+                        value={participant.search}
+                        onChange={(e) =>
+                          handleParticipantSearch(index, e.target.value)
+                        }
+                        onFocus={() =>
+                          updateParticipant(index, "isSearching", true)
+                        }
+                      />
+
+                      {participant.userId && (
+                        <button
+                          type="button"
+                          className="participant-clear-button"
+                          onClick={() => clearParticipant(index)}
+                        >
+                          Limpiar
+                        </button>
+                      )}
+
+                      {participant.isSearching && suggestions.length > 0 && (
+                        <div className="participant-suggestions">
+                          {suggestions.map((worker) => (
+                            <button
+                              type="button"
+                              key={worker.id}
+                              className="participant-suggestion-item"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => selectWorker(index, worker)}
+                            >
+                              {worker.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="RUT"
+                      value={participant.rut}
+                      readOnly
+                    />
+
+                    <select
+                      value={participant.compliesRest ? "SI" : "NO"}
+                      onChange={(e) =>
+                        updateParticipant(
+                          index,
+                          "compliesRest",
+                          e.target.value === "SI",
+                        )
+                      }
                     >
-                      <Trash2 size={16} />
-                    </button>
+                      <option value="SI">Cumple descanso: Sí</option>
+                      <option value="NO">Cumple descanso: No</option>
+                    </select>
+                  </div>
+
+                  {participant.name && (
+                    <p className="participant-selected-name">
+                      Seleccionado: <strong>{participant.name}</strong>
+                    </p>
                   )}
                 </div>
-
-                <div className="grid-2">
-                  <input
-                    type="text"
-                    placeholder="Nombre"
-                    value={participant.name}
-                    onChange={(e) =>
-                      updateParticipant(index, "name", e.target.value)
-                    }
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="RUT"
-                    value={participant.rut}
-                    onChange={(e) =>
-                      updateParticipant(index, "rut", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="participant-signature-row">
-                  <button
-                    type="button"
-                    className={
-                      participant.signatureLocked
-                        ? "participant-sign-button signed"
-                        : "participant-sign-button"
-                    }
-                    onClick={() => openParticipantSignature(index)}
-                  >
-                    <PenLine size={16} />
-                    {participant.signatureLocked
-                      ? "Firma registrada"
-                      : "Firmar participante"}
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <button type="button" className="add-btn" onClick={addParticipant}>
@@ -728,141 +816,57 @@ const response = await fetch(`${API_URL}/safety-talks`, {
         <div className="safety-card">
           <div className="card-title">
             <PenLine size={18} />
-            Firma Relator
+            Firma de quien realiza la reunión
           </div>
 
-          <div className="signature-section">
-            <div className="signature-title">
-              <PenLine size={18} />
-              Firma del Relator
+          <div
+            className={`signature-box ${
+              signatureLocked ? "signature-box-locked" : ""
+            }`}
+          >
+            <canvas
+              ref={canvasRef}
+              className="signature-canvas"
+              onMouseDown={startSignature}
+              onMouseMove={drawSignature}
+              onMouseUp={stopSignature}
+              onMouseLeave={stopSignature}
+              onTouchStart={startSignature}
+              onTouchMove={drawSignature}
+              onTouchEnd={stopSignature}
+            />
+
+            <div className="signature-actions">
+              <button
+                type="button"
+                className="signature-lock-button"
+                onClick={() => setSignatureLocked((prev) => !prev)}
+                disabled={!hasSignature}
+              >
+                {signatureLocked ? <Unlock size={16} /> : <Lock size={16} />}
+                {signatureLocked ? "Desbloquear firma" : "Bloquear firma"}
+              </button>
+
+              <button
+                type="button"
+                className="signature-clear-button"
+                onClick={clearSignature}
+              >
+                <RotateCcw size={16} />
+                Limpiar firma
+              </button>
             </div>
 
-            <div
-              className={`signature-box ${
-                signatureLocked ? "signature-box-locked" : ""
-              }`}
-            >
-              <canvas
-                ref={canvasRef}
-                className="signature-canvas"
-                onMouseDown={startSignature}
-                onMouseMove={drawSignature}
-                onMouseUp={stopSignature}
-                onMouseLeave={stopSignature}
-                onTouchStart={startSignature}
-                onTouchMove={drawSignature}
-                onTouchEnd={stopSignature}
-              />
-
-              <div className="signature-actions">
-                <button
-                  type="button"
-                  className="signature-lock-button"
-                  onClick={() => setSignatureLocked((prev) => !prev)}
-                  disabled={!hasSignature}
-                >
-                  {signatureLocked ? <Unlock size={16} /> : <Lock size={16} />}
-                  {signatureLocked ? "Desbloquear firma" : "Bloquear firma"}
-                </button>
-
-                <button
-                  type="button"
-                  className="signature-clear-button"
-                  onClick={clearSignature}
-                >
-                  <RotateCcw size={16} />
-                  Limpiar firma
-                </button>
-              </div>
-
-              {signatureLocked && (
-                <div className="signature-status">Firma bloqueada ✅</div>
-              )}
-            </div>
+            {signatureLocked && (
+              <div className="signature-status">Firma bloqueada ✅</div>
+            )}
           </div>
         </div>
 
         <button type="submit" className="submit-btn" disabled={loading}>
-          {loading ? "Guardando..." : "Guardar charla"}
+          {loading ? "Guardando..." : "Guardar reunión"}
         </button>
       </form>
-
-      {participantSigningIndex !== null && (
-        <div className="participant-signature-modal-backdrop">
-          <div className="participant-signature-modal">
-            <div className="participant-signature-modal-header">
-              <div>
-                <h3>Firma Participante</h3>
-                <p>
-                  {participants[participantSigningIndex]?.name ||
-                    `Participante ${participantSigningIndex + 1}`}
-                </p>
-              </div>
-
-              <button type="button" onClick={closeParticipantSignature}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div
-              className={`signature-box ${
-                participantModalLocked ? "signature-box-locked" : ""
-              }`}
-            >
-              <canvas
-                ref={modalCanvasRef}
-                className="signature-canvas"
-                onMouseDown={startParticipantSignature}
-                onMouseMove={drawParticipantSignature}
-                onMouseUp={stopParticipantSignature}
-                onMouseLeave={stopParticipantSignature}
-                onTouchStart={startParticipantSignature}
-                onTouchMove={drawParticipantSignature}
-                onTouchEnd={stopParticipantSignature}
-              />
-
-              <div className="signature-actions">
-                <button
-                  type="button"
-                  className="signature-lock-button"
-                  onClick={() => setParticipantModalLocked((prev) => !prev)}
-                  disabled={!participantModalHasSignature}
-                >
-                  {participantModalLocked ? (
-                    <Unlock size={16} />
-                  ) : (
-                    <Lock size={16} />
-                  )}
-                  {participantModalLocked
-                    ? "Desbloquear firma"
-                    : "Bloquear firma"}
-                </button>
-
-                <button
-                  type="button"
-                  className="signature-clear-button"
-                  onClick={clearParticipantSignature}
-                >
-                  <RotateCcw size={16} />
-                  Limpiar firma
-                </button>
-              </div>
-
-              {participantModalLocked && (
-                <div className="signature-status">Firma bloqueada ✅</div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="participant-save-signature-button"
-              onClick={saveParticipantSignature}
-            >
-              Guardar firma del participante
-            </button>
-          </div>
-        </div>
-      )}
 
       {successModalOpen && (
         <div className="success-modal-overlay">
@@ -871,9 +875,8 @@ const response = await fetch(`${API_URL}/safety-talks`, {
               <Check size={36} />
             </div>
 
-            <h3>Charla guardada</h3>
-
-            <p>La charla de seguridad fue registrada exitosamente.</p>
+            <h3>Reunión guardada</h3>
+            <p>La reunión previa de seguridad fue registrada correctamente.</p>
 
             <button
               type="button"

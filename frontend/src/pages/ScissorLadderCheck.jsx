@@ -15,7 +15,7 @@ import {
 
 import "./ScissorLadderCheck.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const MAX_SCISSOR_LADDER_PHOTOS = 2;
 
 const GENERAL_ITEMS = [

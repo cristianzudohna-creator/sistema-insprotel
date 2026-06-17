@@ -16,9 +16,9 @@ import { authHeaders } from "../auth/auth";
 
 import "./UsersAdmin.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-const ROLES = ["SUPERADMIN", "ADMIN", "SUPERVISOR", "PREVENCION", "CONDUCTOR"];
+const ROLES = ["SUPERADMIN", "ADMIN", "SUPERVISOR", "PREVENCION", "CONDUCTOR", "TECNICO",];
 
 function emptyForm() {
   return {

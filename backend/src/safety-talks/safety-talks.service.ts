@@ -9,14 +9,23 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class SafetyTalksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private text(value: any) {
     if (value === null || value === undefined || value === "") return "—";
     return String(value);
+  }
+
+  private toDate(value: any) {
+    if (!value) return new Date();
+    return new Date(value);
   }
 
   private formatDate(value: any) {
@@ -40,22 +49,13 @@ export class SafetyTalksService {
     }
   }
 
-  private formatTalkType(value: any) {
-    return String(value || "")
-      .split(",")
-      .map((item) =>
-        item
-          .trim()
-          .replaceAll("_", " ")
-          .toLowerCase()
-          .replace(/\b\w/g, (letter) => letter.toUpperCase()),
-      )
-      .filter(Boolean)
-      .join(" / ");
-  }
-
   private isSuperadmin(user: any) {
     return String(user?.role || "").toUpperCase() === "SUPERADMIN";
+  }
+
+  private isAdminReviewer(user: any) {
+    const role = String(user?.role || "").toUpperCase();
+    return role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
   }
 
   private async getLoggedUser(user: any) {
@@ -81,6 +81,45 @@ export class SafetyTalksService {
     throw new ForbiddenException("Usuario no válido");
   }
 
+  private async notifyTalkParticipants(talk: any) {
+    const participantsToNotify = (talk.participants || []).filter(
+      (participant: any) => participant.userId && !participant.signatureUrl,
+    );
+
+    await Promise.all(
+      participantsToNotify.map((participant: any) =>
+        this.notificationsService.create(
+          Number(participant.userId),
+          "Charla pendiente de firma",
+          `Tienes una charla pendiente de firma${talk.folio ? ` (${talk.folio})` : ""}.`,
+          `/charlas/pendientes-firma`,
+        ),
+      ),
+    );
+  }
+
+  private async notifyReviewersTalkCompleted(talk: any) {
+    const reviewers = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: {
+          in: ["SUPERVISOR", "PREVENCION"],
+        },
+      },
+    });
+
+    await Promise.all(
+      reviewers.map((reviewer) =>
+        this.notificationsService.create(
+          reviewer.id,
+          "Charla terminada",
+          `Charla terminada disponible para revisión${talk?.folio ? ` (${talk.folio})` : ""}.`,
+          `/charlas/admin`,
+        ),
+      ),
+    );
+  }
+
   private async canAccessTalk(currentUser: any, id: number) {
     const user = await this.getLoggedUser(currentUser);
 
@@ -97,53 +136,85 @@ export class SafetyTalksService {
       throw new NotFoundException("Charla no encontrada");
     }
 
-    if (!this.isSuperadmin(user) && talk.userId !== user.id) {
+    const isOwner = talk.userId === user.id;
+    const isParticipant = talk.participants.some(
+      (participant) => participant.userId === user.id,
+    );
+
+    if (!this.isAdminReviewer(user) && !isOwner && !isParticipant) {
       throw new ForbiddenException("No tienes permiso para ver esta charla");
     }
 
     return talk;
   }
 
+  private generateFolio(id: number) {
+    return `RPS-${new Date().getFullYear()}-${String(id).padStart(4, "0")}`;
+  }
+
   async create(
     currentUser: any,
     data: any,
     photos: Express.Multer.File[] = [],
-    reporterSignature?: Express.Multer.File | null,
+    creatorSignature?: Express.Multer.File | null,
     participantSignatures: Express.Multer.File[] = [],
   ) {
     const user = await this.getLoggedUser(currentUser);
     const participants = this.parseJson(data.participants);
 
-    return this.prisma.safetyTalk.create({
+    const created = await this.prisma.safetyTalk.create({
       data: {
-        date: new Date(),
-        sectionOrWork: data.sectionOrWork || null,
-        reporterName: data.reporterName || "Sin relator",
-        reporterRut: null,
-        reporterSignatureUrl: reporterSignature
-          ? `/uploads/safety-talks/${reporterSignature.filename}`
+        date: this.toDate(data.date),
+        areaLocationInstallation: data.areaLocationInstallation || null,
+        meetingTime: data.meetingTime || null,
+        workOrderProject: data.workOrderProject || null,
+        workPermitActivity: data.workPermitActivity || null,
+        worksToDo: data.worksToDo || null,
+        foremanOrBrigadeName: data.foremanOrBrigadeName || null,
+        foremanCompany: data.foremanCompany || null,
+        peopleCount: Number(data.peopleCount || participants.length || 0),
+        workTypes: data.workTypes || null,
+        significantRisks: data.significantRisks || null,
+        analyzedAccident: data.analyzedAccident || null,
+        controlMeasure1: data.controlMeasure1 || null,
+        controlMeasure2: data.controlMeasure2 || null,
+        controlMeasure3: data.controlMeasure3 || null,
+        controlMeasure4: data.controlMeasure4 || null,
+        controlMeasure5: data.controlMeasure5 || null,
+        controlMeasure6: data.controlMeasure6 || null,
+        controlMeasure7: data.controlMeasure7 || null,
+        controlMeasure8: data.controlMeasure8 || null,
+        controlMeasure9: data.controlMeasure9 || null,
+        controlMeasure10: data.controlMeasure10 || null,
+        controlMeasure11: data.controlMeasure11 || null,
+        controlMeasure12: data.controlMeasure12 || null,
+        creatorRole: data.creatorRole || "TECNICO",
+        status: "PENDIENTE_FIRMAS",
+        createdByName: data.createdByName || user.name || "Sin nombre",
+        createdByRut: data.createdByRut || user.rut || null,
+        createdBySignatureUrl: creatorSignature
+          ? `/uploads/safety-talks/${creatorSignature.filename}`
           : null,
-        type: data.type || "CHARLA_5_MINUTOS",
-        topicTitle: data.topicTitle || "Sin tema",
-        topicDetails: data.topicDetails || null,
-        observations: null,
         userId: user.id,
-
         participants: {
           create: participants.map((item: any, index: number) => {
             const participantSignature = participantSignatures[index];
 
             return {
+              userId: item.userId ? Number(item.userId) : null,
               name: item.name || "Sin nombre",
               rut: item.rut || null,
-              position: null,
+              compliesRest:
+                item.compliesRest === true ||
+                item.compliesRest === "true" ||
+                item.compliesRest === "SI",
               signatureUrl: participantSignature
                 ? `/uploads/safety-talks/${participantSignature.filename}`
                 : null,
+              signedAt: participantSignature ? new Date() : null,
             };
           }),
         },
-
         photos: {
           create: photos.map((file) => ({
             imageUrl: `/uploads/safety-talks/${file.filename}`,
@@ -156,6 +227,44 @@ export class SafetyTalksService {
         user: true,
       },
     });
+
+    const updated = await this.prisma.safetyTalk.update({
+      where: { id: created.id },
+      data: {
+        folio: this.generateFolio(created.id),
+      },
+      include: {
+        participants: true,
+        photos: true,
+        user: true,
+      },
+    });
+
+    await this.notifyTalkParticipants(updated);
+
+    const allSigned =
+      updated.participants.length > 0 &&
+      updated.participants.every((item) => Boolean(item.signatureUrl));
+
+    if (allSigned) {
+      const completedTalk = await this.prisma.safetyTalk.update({
+        where: { id: updated.id },
+        data: {
+          status: "COMPLETADA",
+        },
+        include: {
+          participants: true,
+          photos: true,
+          user: true,
+        },
+      });
+
+      await this.notifyReviewersTalkCompleted(completedTalk);
+
+      return completedTalk;
+    }
+
+    return updated;
   }
 
   async findAll(currentUser: any) {
@@ -163,7 +272,16 @@ export class SafetyTalksService {
 
     return this.prisma.safetyTalk.findMany({
       where: {
-        userId: user.id,
+        OR: [
+          { userId: user.id },
+          {
+            participants: {
+              some: {
+                userId: user.id,
+              },
+            },
+          },
+        ],
       },
       include: {
         participants: true,
@@ -177,8 +295,10 @@ export class SafetyTalksService {
   async findAllAdmin(currentUser: any) {
     const user = await this.getLoggedUser(currentUser);
 
-    if (!this.isSuperadmin(user)) {
-      throw new ForbiddenException("Solo SUPERADMIN puede ver todas las charlas");
+    if (!this.isAdminReviewer(user)) {
+      throw new ForbiddenException(
+        "Solo supervisores, prevención o SUPERADMIN pueden ver todas las charlas",
+      );
     }
 
     return this.prisma.safetyTalk.findMany({
@@ -191,14 +311,60 @@ export class SafetyTalksService {
     });
   }
 
+  async pendingSignatures(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+
+    return this.prisma.safetyTalk.findMany({
+      where: {
+        status: "PENDIENTE_FIRMAS",
+        participants: {
+          some: {
+            userId: user.id,
+            signatureUrl: null,
+          },
+        },
+      },
+      include: {
+        participants: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
   async findOne(currentUser: any, id: number) {
     return this.canAccessTalk(currentUser, id);
+  }
+
+  async findPendingSignatures(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+
+    return this.prisma.safetyTalk.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: user.id,
+            signatureUrl: null,
+          },
+        },
+      },
+      include: {
+        participants: true,
+        photos: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
   }
 
   async generatePdf(currentUser: any, id: number, res: Response) {
     const talk = await this.findOne(currentUser, id);
 
-    const safeReporter = String(talk.reporterName || "relator").replace(
+    const safeName = String(talk.createdByName || "charla").replace(
       /[^a-zA-Z0-9-_]/g,
       "_",
     );
@@ -208,7 +374,7 @@ export class SafetyTalksService {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="CHARLA_${safeReporter}_${today}.pdf"`,
+      `inline; filename="REUNION_SEGURIDAD_${safeName}_${today}.pdf"`,
     );
 
     const doc = new PDFDocument({
@@ -220,12 +386,15 @@ export class SafetyTalksService {
     doc.pipe(res);
 
     const pageWidth = doc.page.width;
-    const pageHeight = doc.page.height;
     const margin = 18;
     const contentWidth = pageWidth - margin * 2;
     const black = "#111827";
-    const gray = "#f3f4f6";
-    const bottomLimit = pageHeight - 28;
+    const gray = "#e5e7eb";
+
+    const getPathFromUrl = (url: any) => {
+      const relativePath = String(url || "").replace(/^\/+/, "");
+      return path.join(process.cwd(), relativePath);
+    };
 
     const logoCandidates = [
       path.join(process.cwd(), "uploads", "branding", "logo-insprotel.png"),
@@ -233,11 +402,6 @@ export class SafetyTalksService {
     ];
 
     const logoPath = logoCandidates.find((item) => fs.existsSync(item));
-
-    const getPathFromUrl = (url: any) => {
-      const relativePath = String(url || "").replace(/^\/+/, "");
-      return path.join(process.cwd(), relativePath);
-    };
 
     const drawCell = (
       x: number,
@@ -256,10 +420,10 @@ export class SafetyTalksService {
       doc
         .fillColor(black)
         .font(options.bold ? "Helvetica-Bold" : "Helvetica")
-        .fontSize(options.fontSize || 7)
-        .text(text, x + 4, y + 5, {
-          width: w - 8,
-          height: h - 6,
+        .fontSize(options.fontSize || 6.5)
+        .text(text, x + 3, y + 4, {
+          width: w - 6,
+          height: h - 5,
           align: options.align || "left",
         });
     };
@@ -278,224 +442,288 @@ export class SafetyTalksService {
       if (!fs.existsSync(signaturePath)) return;
 
       try {
-        doc.image(signaturePath, x + 6, y + 3, {
-          fit: [w - 12, h - 6],
+        doc.image(signaturePath, x + 3, y + 2, {
+          fit: [w - 6, h - 4],
           align: "center",
           valign: "center",
         });
       } catch {
-        // evitar romper pdf
+        // no romper PDF
       }
     };
 
-    const headerY = 18;
-    const headerH = 54;
-    const logoW = 180;
-    const titleW = contentWidth - logoW;
+    let y = 18;
 
-    drawCell(margin, headerY, logoW, headerH, "");
-
-    if (logoPath) {
-      try {
-        doc.image(logoPath, margin + 14, headerY + 8, {
-          width: 150,
-          height: 38,
-        });
-      } catch {
-        doc
-          .font("Helvetica-Bold")
-          .fontSize(14)
-          .fillColor(black)
-          .text("INSPROTEL", margin + 18, headerY + 20);
-      }
-    }
-
-    drawCell(margin + logoW, headerY, titleW, headerH, "");
+    drawCell(margin, y, contentWidth, 34, "", {});
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor(black)
+      .text("Reunión Previa de Seguridad en el Trabajo", margin, y + 6, {
+        width: contentWidth,
+        align: "center",
+      });
 
     doc
       .font("Helvetica-Bold")
-      .fontSize(18)
-      .fillColor(black)
-      .text("REGISTRO CHARLA DE SEGURIDAD", margin + logoW, headerY + 17, {
-        width: titleW,
+      .fontSize(7)
+      .text(
+        "Confeccionada en terreno el día de la ejecución del trabajo",
+        margin,
+        y + 21,
+        {
+          width: contentWidth,
+          align: "center",
+        },
+      );
+
+    if (logoPath) {
+      try {
+        doc.image(logoPath, margin + 4, y + 5, {
+          width: 90,
+          height: 22,
+        });
+      } catch {
+        // sin logo
+      }
+    }
+
+    y += 34;
+
+    drawCell(margin, y, 120, 16, "Área, lugar, instalación:", {
+      bold: true,
+      fill: gray,
+    });
+    drawCell(
+      margin + 120,
+      y,
+      contentWidth - 230,
+      16,
+      this.text(talk.areaLocationInstallation),
+    );
+    drawCell(margin + contentWidth - 110, y, 55, 16, "Fecha:", {
+      bold: true,
+      fill: gray,
+    });
+    drawCell(margin + contentWidth - 55, y, 55, 16, this.formatDate(talk.date), {
+      align: "center",
+    });
+
+    y += 16;
+
+    drawCell(margin, y, 140, 16, "Orden de trabajo/Proyecto:", {
+      bold: true,
+      fill: gray,
+    });
+    drawCell(margin + 140, y, 220, 16, this.text(talk.workOrderProject));
+    drawCell(margin + 360, y, 130, 16, "N° Permiso de Faena/Actividad:", {
+      bold: true,
+      fill: gray,
+      fontSize: 5.7,
+    });
+    drawCell(
+      margin + 490,
+      y,
+      contentWidth - 490,
+      16,
+      this.text(talk.workPermitActivity),
+    );
+
+    y += 16;
+
+    drawCell(margin, y, contentWidth, 16, "SE REALIZARAN TRABAJOS DE:", {
+      bold: true,
+      fill: gray,
+    });
+
+    y += 16;
+    drawCell(margin, y, contentWidth, 42, this.text(talk.worksToDo), {
+      fontSize: 8,
+    });
+
+    y += 42;
+
+    drawCell(margin, y, 160, 16, "Jefe de Faena o Brigada", {
+      bold: true,
+      fill: gray,
+    });
+    drawCell(margin + 160, y, 210, 16, this.text(talk.foremanOrBrigadeName));
+    drawCell(margin + 370, y, 110, 16, "N° de personas:", {
+      bold: true,
+      fill: gray,
+    });
+
+    const totalPeople =
+      Number(talk.peopleCount) || 1 + (talk.participants?.length || 0);
+
+    drawCell(margin + 480, y, contentWidth - 480, 16, String(totalPeople), {
+      align: "center",
+    });
+
+    y += 16;
+
+    drawCell(margin, y, contentWidth, 16, "TIPO DE TRABAJOS", {
+      bold: true,
+      align: "center",
+      fill: gray,
+    });
+
+    y += 16;
+    drawCell(margin, y, contentWidth, 76, this.text(talk.workTypes), {
+      fontSize: 8,
+    });
+
+    y += 76;
+
+    drawCell(margin, y, contentWidth, 16, "RIESGOS PREVISTOS MAS SIGNIFICATIVOS", {
+      bold: true,
+      align: "center",
+      fill: gray,
+    });
+
+    y += 16;
+    drawCell(margin, y, contentWidth, 78, this.text(talk.significantRisks), {
+      fontSize: 8,
+    });
+
+    y += 78;
+
+    drawCell(margin, y, contentWidth, 16, "ACCIDENTE E INCIDENTE ANALIZADO", {
+      bold: true,
+      align: "center",
+      fill: gray,
+    });
+
+    y += 16;
+    drawCell(margin, y, contentWidth, 58, this.text(talk.analyzedAccident), {
+      fontSize: 8,
+    });
+
+    y += 58;
+
+    drawCell(margin, y, contentWidth, 16, "MEDIDAS DE CONTROL", {
+      bold: true,
+      align: "center",
+      fill: gray,
+    });
+
+    y += 16;
+
+    const measureW = contentWidth / 2;
+    const measureH = 14;
+    const measures = [
+      talk.controlMeasure1,
+      talk.controlMeasure2,
+      talk.controlMeasure3,
+      talk.controlMeasure4,
+      talk.controlMeasure5,
+      talk.controlMeasure6,
+      talk.controlMeasure7,
+      talk.controlMeasure8,
+      talk.controlMeasure9,
+      talk.controlMeasure10,
+      talk.controlMeasure11,
+      talk.controlMeasure12,
+    ];
+
+    for (let i = 0; i < 6; i++) {
+      drawCell(margin, y, 24, measureH, `${i + 1}.-`, { align: "center" });
+      drawCell(margin + 24, y, measureW - 24, measureH, this.text(measures[i]));
+
+      drawCell(margin + measureW, y, 24, measureH, `${i + 7}.-`, {
         align: "center",
       });
+      drawCell(
+        margin + measureW + 24,
+        y,
+        measureW - 24,
+        measureH,
+        this.text(measures[i + 6]),
+      );
 
-    let y = headerY + headerH + 12;
+      y += measureH;
+    }
 
-    drawCell(margin, y, contentWidth, 18, "ANTECEDENTES DE LA CHARLA", {
+    drawCell(margin, y, contentWidth, 16, "LISTADO E INFORMACIÓN TRABAJADORES", {
       bold: true,
       align: "center",
       fill: gray,
-      fontSize: 8,
     });
 
-    y += 18;
+    y += 16;
 
-    drawCell(margin, y, 95, 18, "Fecha", {
-      fill: gray,
+    const rowH = 24;
+    const colN = 26;
+    const colName = 210;
+    const colRut = 95;
+    const colRest = 70;
+    const colSign = contentWidth - colN - colName - colRut - colRest;
+
+    drawCell(margin, y, colN, 16, "N°", {
       bold: true,
-    });
-
-    drawCell(margin + 95, y, 150, 18, this.formatDate(talk.date), {
+      fill: gray,
       align: "center",
+      fontSize: 6,
     });
 
-    drawCell(margin + 245, y, 95, 18, "Tipo de charla", {
+    drawCell(margin + colN, y, colName, 16, "Nombre", {
+      bold: true,
       fill: gray,
-      bold: true,
+      fontSize: 6,
     });
 
-    drawCell(
-      margin + 340,
-      y,
-      contentWidth - 340,
-      18,
-      this.formatTalkType(talk.type),
-      {
-        fontSize: 7,
-        align: "center",
-      },
-    );
-
-    y += 18;
-
-    drawCell(margin, y, 95, 18, "Relator", {
+    drawCell(margin + colN + colName, y, colRut, 16, "Rut", {
+      bold: true,
       fill: gray,
-      bold: true,
+      fontSize: 6,
     });
 
-    drawCell(
-      margin + 95,
-      y,
-      contentWidth - 95,
-      18,
-      this.text(talk.reporterName),
-    );
-
-    y += 18;
-
-    drawCell(margin, y, 95, 18, "Sección / Obra", {
+    drawCell(margin + colN + colName + colRut, y, colRest, 16, "Descanso", {
+      bold: true,
       fill: gray,
-      bold: true,
-    });
-
-    drawCell(
-      margin + 95,
-      y,
-      contentWidth - 95,
-      18,
-      this.text(talk.sectionOrWork),
-    );
-
-    y += 28;
-
-    drawCell(margin, y, contentWidth, 18, "TEMA TRATADO", {
-      bold: true,
       align: "center",
-      fill: gray,
-      fontSize: 8,
-    });
-
-    y += 18;
-
-    drawCell(margin, y, 100, 22, "Tema", {
-      fill: gray,
-      bold: true,
+      fontSize: 6,
     });
 
     drawCell(
-      margin + 100,
+      margin + colN + colName + colRut + colRest,
       y,
-      contentWidth - 100,
-      22,
-      this.text(talk.topicTitle),
+      colSign,
+      16,
+      "Firma",
       {
         bold: true,
-        fontSize: 8,
+        fill: gray,
+        align: "center",
+        fontSize: 6,
       },
     );
 
-    y += 22;
+    y += 16;
 
-    const topicDetailsH = 76;
-
-    drawCell(
-      margin,
-      y,
-      contentWidth,
-      topicDetailsH,
-      this.text(talk.topicDetails),
+    const participants = [
       {
-        fontSize: 8,
+        name: talk.createdByName,
+        rut: talk.createdByRut,
+        compliesRest: true,
+        signatureUrl: talk.createdBySignatureUrl,
       },
-    );
+      ...(talk.participants || []),
+    ];
 
-    y += topicDetailsH + 12;
-
-    drawCell(margin, y, contentWidth, 18, "PARTICIPANTES", {
-      bold: true,
-      align: "center",
-      fill: gray,
-      fontSize: 8,
-    });
-
-    y += 18;
-
-    const colN = 28;
-    const colName = 235;
-    const colRut = 120;
-    const colSignature = contentWidth - colN - colName - colRut;
-    const rowH = 28;
-
-    drawCell(margin, y, colN, 18, "N°", {
-      bold: true,
-      fill: gray,
-      align: "center",
-    });
-
-    drawCell(margin + colN, y, colName, 18, "Nombre", {
-      bold: true,
-      fill: gray,
-      align: "center",
-    });
-
-    drawCell(margin + colN + colName, y, colRut, 18, "RUT", {
-      bold: true,
-      fill: gray,
-      align: "center",
-    });
-
-    drawCell(margin + colN + colName + colRut, y, colSignature, 18, "Firma", {
-      bold: true,
-      fill: gray,
-      align: "center",
-    });
-
-    y += 18;
-
-    const participants = talk.participants || [];
-    const rowsToDraw = Math.max(10, participants.length);
+    const rowsToDraw = Math.max(participants.length, 1);
 
     for (let i = 0; i < rowsToDraw; i++) {
-      if (y + rowH > bottomLimit) {
-        doc.addPage();
-        y = 28;
-      }
-
       const item = participants[i];
 
-      drawCell(margin, y, colN, rowH, item ? String(i + 1) : "", {
+      drawCell(margin, y, colN, rowH, `${i + 1}.-`, {
         align: "center",
+        fontSize: 6,
       });
 
-      drawCell(
-        margin + colN,
-        y,
-        colName,
-        rowH,
-        this.text(item?.name || ""),
-      );
+      drawCell(margin + colN, y, colName, rowH, this.text(item?.name || ""), {
+        fontSize: 6,
+      });
 
       drawCell(
         margin + colN + colName,
@@ -503,15 +731,36 @@ export class SafetyTalksService {
         colRut,
         rowH,
         this.text(item?.rut || ""),
+        {
+          fontSize: 6,
+        },
       );
 
-      drawCell(margin + colN + colName + colRut, y, colSignature, rowH, "");
+      drawCell(
+        margin + colN + colName + colRut,
+        y,
+        colRest,
+        rowH,
+        item ? (item.compliesRest ? "Sí" : "No") : "",
+        {
+          align: "center",
+          fontSize: 6,
+        },
+      );
+
+      drawCell(
+        margin + colN + colName + colRut + colRest,
+        y,
+        colSign,
+        rowH,
+        "",
+      );
 
       if (item?.signatureUrl) {
         drawSignature(
-          margin + colN + colName + colRut,
+          margin + colN + colName + colRut + colRest,
           y,
-          colSignature,
+          colSign,
           rowH,
           item.signatureUrl,
         );
@@ -520,36 +769,146 @@ export class SafetyTalksService {
       y += rowH;
     }
 
-    y += 20;
+    y += 8;
 
-    if (y + 90 > bottomLimit) {
-      doc.addPage();
-      y = 28;
-    }
+    const commitmentH = 62;
 
-    const signW = 320;
-    const signX = (pageWidth - signW) / 2;
+    doc.rect(margin, y, contentWidth, commitmentH).stroke(black);
 
-    drawCell(signX, y, signW, 18, "Firma Relator", {
-      bold: true,
-      fill: gray,
-      align: "center",
-    });
-
-    doc.rect(signX, y + 18, signW, 62).stroke(black);
-
-    drawSignature(signX, y + 22, signW, 36, talk.reporterSignatureUrl);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(6.7)
+      .fillColor(black)
+      .text(
+        "Los trabajadores que suscriben, se comprometen a cumplir todas las instrucciones recibidas para evitar accidentes en el trabajo y al mismo tiempo dar cuenta inmediata a sus superiores respecto de acciones subestándares cometidas por otros trabajadores o de condiciones subestándares existentes en las instalaciones.",
+        margin + 14,
+        y + 7,
+        {
+          width: contentWidth - 28,
+          align: "center",
+          lineGap: 1,
+        },
+      );
 
     doc
       .font("Helvetica")
-      .fontSize(10)
+      .fontSize(6.7)
       .fillColor(black)
-      .text(this.text(talk.reporterName), signX, y + 60, {
-        width: signW,
-        align: "center",
-      });
+      .text(
+        "Los trabajadores que suscriben, declaran conocer todos los riesgos inherentes a los trabajos convenidos, adoptando las medidas preventivas, acuerdos y los procedimientos de trabajos.",
+        margin + 14,
+        y + 31,
+        {
+          width: contentWidth - 28,
+          align: "center",
+          lineGap: 1,
+        },
+      );
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .fillColor(black)
+      .text(
+        "Deber de Informar ( Ley 16.744, artículo 21, Decreto 40/69 ).",
+        margin + 10,
+        y + 49,
+        {
+          width: contentWidth - 20,
+          align: "center",
+        },
+      );
 
     doc.end();
+  }
+
+  async signTalk(
+    currentUser: any,
+    id: number,
+    signature?: Express.Multer.File | null,
+  ) {
+    const user = await this.getLoggedUser(currentUser);
+
+    if (!signature) {
+      throw new ForbiddenException("Debes adjuntar una firma");
+    }
+
+    const talk = await this.prisma.safetyTalk.findUnique({
+      where: { id },
+      include: {
+        participants: true,
+        photos: true,
+        user: true,
+      },
+    });
+
+    if (!talk) {
+      throw new NotFoundException("Charla no encontrada");
+    }
+
+    const participant = talk.participants.find(
+      (item) => item.userId === user.id,
+    );
+
+    if (!participant) {
+      throw new ForbiddenException("No eres participante de esta charla");
+    }
+
+    if (participant.signatureUrl) {
+      throw new ForbiddenException("Ya firmaste esta charla");
+    }
+
+    const signatureUrl = `/uploads/safety-talks/${signature.filename}`;
+
+    await this.prisma.safetyTalkParticipant.update({
+      where: {
+        id: participant.id,
+      },
+      data: {
+        signatureUrl,
+        signedAt: new Date(),
+      },
+    });
+
+    const updatedTalk = await this.prisma.safetyTalk.findUnique({
+      where: { id },
+      include: {
+        participants: true,
+        photos: true,
+        user: true,
+      },
+    });
+
+    const allSigned =
+      updatedTalk?.participants.length &&
+      updatedTalk.participants.every((item) => Boolean(item.signatureUrl));
+
+    if (allSigned && talk.status !== "COMPLETADA") {
+      const completedTalk = await this.prisma.safetyTalk.update({
+        where: { id },
+        data: {
+          status: "COMPLETADA",
+        },
+        include: {
+          participants: true,
+          photos: true,
+          user: true,
+        },
+      });
+
+      await this.notifyReviewersTalkCompleted(completedTalk);
+
+      return completedTalk;
+    }
+
+    return this.prisma.safetyTalk.findUnique({
+      where: { id },
+      include: {
+        participants: true,
+        photos: true,
+        user: true,
+      },
+    });
   }
 
   async remove(currentUser: any, id: number) {

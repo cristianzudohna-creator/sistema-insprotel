@@ -44,12 +44,50 @@ export class UsersService {
     };
   }
 
+  async saveFcmToken(userId: number, token: string) {
+    const cleanToken = String(token || "").trim();
+
+    if (!cleanToken) {
+      throw new BadRequestException("Token FCM no enviado");
+    }
+
+    return this.prisma.userFcmToken.upsert({
+      where: {
+        token: cleanToken,
+      },
+      update: {
+        userId,
+      },
+      create: {
+        token: cleanToken,
+        userId,
+      },
+    });
+  }
+
   async findAll() {
     return this.prisma.user.findMany({
       orderBy: {
         createdAt: "desc",
       },
       select: this.userSelect(),
+    });
+  }
+
+  async findWorkers() {
+    return this.prisma.user.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        rut: true,
+        name: true,
+        role: true,
+      },
     });
   }
 

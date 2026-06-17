@@ -18,7 +18,7 @@ import {
 
 import "./VehicleCheckList.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const MAX_GENERAL_PHOTOS = 10;
 
 function todayInputDate() {

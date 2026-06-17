@@ -12,6 +12,7 @@ enum Role {
   SUPERVISOR
   PREVENCION
   CONDUCTOR
+  TECNICO
 }
 
 enum VehicleCheckStatus {
@@ -91,6 +92,18 @@ enum DocumentStatus {
   VENCIDA
 }
 
+enum SafetyTalkStatus {
+  BORRADOR
+  PENDIENTE_FIRMAS
+  COMPLETADA
+  ENVIADA_REVISION
+}
+
+enum SafetyTalkCreatorRole {
+  TECNICO
+  CONDUCTOR
+}
+
 model User {
   id       Int     @id @default(autoincrement())
   rut      String? @unique
@@ -105,13 +118,16 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vehicleChecks       VehicleCheckList[]
-  safetyTalks         SafetyTalk[]
-  harnessChecks       HarnessCheck[]
-  ladderChecks        LadderCheck[]
-  scissorLadderChecks ScissorLadderCheck[]
-  toolsEppChecks      ToolsEppCheck[]
-  toolsDriverChecks   ToolsDriverCheck[]
+  vehicleChecks             VehicleCheckList[]
+  safetyTalks               SafetyTalk[]
+  safetyTalkParticipations  SafetyTalkParticipant[]
+  harnessChecks             HarnessCheck[]
+  ladderChecks              LadderCheck[]
+  scissorLadderChecks       ScissorLadderCheck[]
+  toolsEppChecks            ToolsEppCheck[]
+  toolsDriverChecks         ToolsDriverCheck[]
+  notifications             Notification[]
+  fcmTokens                 UserFcmToken[]
 }
 
 model Vehicle {
@@ -206,17 +222,43 @@ model SafetyTalk {
   folio String?
   date  DateTime @default(now())
 
-  sectionOrWork        String?
-  reporterName         String
-  reporterRut          String?
-  reporterSignatureUrl String?
+  areaLocationInstallation String?
+  meetingTime              String?
 
-  type String
+  workOrderProject   String?
+  workPermitActivity String?
 
-  topicTitle   String
-  topicDetails String?
+  worksToDo            String?
+  foremanOrBrigadeName String?
+  foremanCompany       String?
+  peopleCount          Int?
 
-  observations String?
+  workTypes        String?
+  significantRisks String?
+  analyzedAccident String?
+
+  controlMeasure1  String?
+  controlMeasure2  String?
+  controlMeasure3  String?
+  controlMeasure4  String?
+  controlMeasure5  String?
+  controlMeasure6  String?
+  controlMeasure7  String?
+  controlMeasure8  String?
+  controlMeasure9  String?
+  controlMeasure10 String?
+  controlMeasure11 String?
+  controlMeasure12 String?
+
+  creatorRole SafetyTalkCreatorRole?
+  status      SafetyTalkStatus @default(PENDIENTE_FIRMAS)
+
+  createdByName         String?
+  createdByRut          String?
+  createdBySignatureUrl String?
+
+  sentToSupervisorAt DateTime?
+  sentToPreventionAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -231,10 +273,15 @@ model SafetyTalk {
 model SafetyTalkParticipant {
   id Int @id @default(autoincrement())
 
-  name         String
-  rut          String?
-  position     String?
-  signatureUrl String?
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+
+  name String
+  rut  String?
+
+  compliesRest Boolean?
+  signatureUrl  String?
+  signedAt      DateTime?
 
   createdAt DateTime @default(now())
 
@@ -478,15 +525,40 @@ model ToolsDriverCheck {
 model ToolsDriverCheckItem {
   id Int @id @default(autoincrement())
 
-  number Int?
-  name   String
-
-  quantity String?
-  status   ToolsDriverItemStatus?
+  number      Int?
+  name        String
+  quantity    String?
+  status      ToolsDriverItemStatus?
   observation String?
 
   createdAt DateTime @default(now())
 
   toolsDriverCheckId Int
   toolsDriverCheck   ToolsDriverCheck @relation(fields: [toolsDriverCheckId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id Int @id @default(autoincrement())
+
+  title   String
+  message String
+  url     String?
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserFcmToken {
+  id Int @id @default(autoincrement())
+
+  token String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
