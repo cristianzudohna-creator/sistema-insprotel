@@ -16,8 +16,8 @@ messaging.onBackgroundMessage((payload) => {
   const title = payload.notification?.title || "Nueva notificación";
   const options = {
     body: payload.notification?.body || "",
-    icon: "/logo-insprotel.png",
-    badge: "/logo-insprotel.png",
+    icon: "/notification-icon.png",
+badge: "/notification-icon.png",
     data: {
       url: payload.data?.url || "/",
     },
