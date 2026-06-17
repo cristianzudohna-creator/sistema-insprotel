@@ -27,12 +27,7 @@ function Login() {
         return;
       }
 
-      if (user?.role === "SUPERADMIN") {
-        navigate("/dashboard", { replace: true });
-        return;
-      }
-
-      navigate("/check-vehiculos", { replace: true });
+      navigate("/inicio", { replace: true });
     } catch (error) {
       alert(error.message || "Error iniciando sesión");
     } finally {

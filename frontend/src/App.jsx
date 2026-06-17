@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
 
+import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import VehicleCheckList from "./pages/VehicleCheckList";
 import VehicleCheckHistory from "./pages/VehicleCheckHistory";
@@ -23,7 +24,6 @@ import ToolsDriverCheck from "./pages/ToolsDriverCheck";
 import ToolsDriverCheckHistory from "./pages/ToolsDriverCheckHistory";
 
 import {
-  getUser,
   isLoggedIn,
   isSuperadmin,
   mustChangePassword,
@@ -38,27 +38,16 @@ function ProtectedRoute({ children }) {
 function SuperadminRoute({ children }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
   if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
-  if (!isSuperadmin()) return <Navigate to="/check-vehiculos" replace />;
+  if (!isSuperadmin()) return <Navigate to="/inicio" replace />;
   return children;
 }
 
 function AppRoutes() {
-  const user = getUser();
-  const isUserSuperadmin = user?.role === "SUPERADMIN";
-
   return (
     <MainLayout>
       <Routes>
-        <Route
-          path="/"
-          element={
-            isUserSuperadmin ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/check-vehiculos" replace />
-            )
-          }
-        />
+        <Route path="/" element={<Navigate to="/inicio" replace />} />
+        <Route path="/inicio" element={<Home />} />
 
         <Route
           path="/dashboard"
@@ -85,11 +74,7 @@ function AppRoutes() {
         <Route path="/charlas" element={<SafetyTalks />} />
         <Route path="/charlas/historial" element={<SafetyTalkHistory />} />
         <Route path="/charlas/pendientes" element={<SafetyTalkPendingSignatures />} />
-
-        <Route
-          path="/charlas/historial-todos"
-          element={<SafetyTalkHistory />}
-        />
+        <Route path="/charlas/historial-todos" element={<SafetyTalkHistory />} />
 
         {/* ARNES */}
         <Route
@@ -241,16 +226,7 @@ function AppRoutes() {
           }
         />
 
-        <Route
-          path="*"
-          element={
-            isUserSuperadmin ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/check-vehiculos" replace />
-            )
-          }
-        />
+        <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Routes>
     </MainLayout>
   );
@@ -266,10 +242,8 @@ function App() {
             isLoggedIn() ? (
               mustChangePassword() ? (
                 <Navigate to="/cambiar-password" replace />
-              ) : isSuperadmin() ? (
-                <Navigate to="/dashboard" replace />
               ) : (
-                <Navigate to="/check-vehiculos" replace />
+                <Navigate to="/inicio" replace />
               )
             ) : (
               <Login />

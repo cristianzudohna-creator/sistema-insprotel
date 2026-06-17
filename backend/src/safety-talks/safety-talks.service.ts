@@ -396,10 +396,17 @@ export class SafetyTalksService {
       return path.join(process.cwd(), relativePath);
     };
 
-    const logoCandidates = [
-      path.join(process.cwd(), "uploads", "branding", "logo-insprotel.png"),
-      path.join(process.cwd(), "uploads", "logo-insprotel.png"),
-    ];
+    const isoCandidates = [
+  path.join(process.cwd(), "uploads", "branding", "iso.png"),
+  path.join(process.cwd(), "uploads", "iso.png"),
+];
+
+const logoCandidates = [
+  path.join(process.cwd(), "uploads", "branding", "logo-insprotel.png"),
+  path.join(process.cwd(), "uploads", "logo-insprotel.png"),
+];
+
+const isoPath = isoCandidates.find((item) => fs.existsSync(item));
 
     const logoPath = logoCandidates.find((item) => fs.existsSync(item));
 
@@ -477,16 +484,29 @@ export class SafetyTalksService {
         },
       );
 
-    if (logoPath) {
-      try {
-        doc.image(logoPath, margin + 4, y + 5, {
-          width: 90,
-          height: 22,
-        });
-      } catch {
-        // sin logo
-      }
-    }
+    // ISO a la izquierda
+if (isoPath) {
+  try {
+    doc.image(isoPath, margin + 6, y + 3, {
+      width: 130,
+      height: 28,
+    });
+  } catch {
+    // ignorar
+  }
+}
+
+// Logo Insprotel a la derecha
+if (logoPath) {
+  try {
+    doc.image(logoPath, pageWidth - margin - 110, y + 5, {
+      width: 100,
+      height: 22,
+    });
+  } catch {
+    // ignorar
+  }
+}
 
     y += 34;
 

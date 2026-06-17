@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   HardHat,
   PenLine,
+  Home,
 } from "lucide-react";
 
 import { getUser, logout } from "../auth/auth";
@@ -80,6 +81,17 @@ function MainLayout({ children }) {
         </div>
 
         <div className="menu-title">MENÚ PRINCIPAL</div>
+
+        <NavLink
+  to="/inicio"
+  onClick={closeMenu}
+  className={({ isActive }) =>
+    isActive ? "menu-item active-link" : "menu-item"
+  }
+>
+  <Home size={20} />
+  <span>Inicio</span>
+</NavLink>
 
         <nav className="menu">
           {isSuperadmin && (
