@@ -74,8 +74,8 @@ export class FirebaseService {
             notification: {
               title,
               body,
-              icon: "https://insprotelgestion.cl/logo-insprotel.png",
-              badge: "https://insprotelgestion.cl/logo-insprotel.png",
+              icon: "https://insprotelgestion.cl/notification-icon.png",
+badge: "https://insprotelgestion.cl/notification-icon.png",
               requireInteraction: true,
               data: {
                 url: targetUrl,
