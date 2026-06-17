@@ -48,6 +48,13 @@ export class FirebaseService {
       return;
     }
 
+    const baseUrl =
+      process.env.FRONTEND_URL || "https://insprotelgestion.cl";
+
+    const targetUrl = url?.startsWith("http")
+      ? url
+      : `${baseUrl}${url || "/"}`;
+
     const results = await Promise.allSettled(
       tokens.map((token) =>
         getMessaging().send({
@@ -57,17 +64,25 @@ export class FirebaseService {
             body,
           },
           data: {
-            url: url || "/",
+            url: targetUrl,
+            click_action: targetUrl,
           },
           webpush: {
+            headers: {
+              Urgency: "high",
+            },
             notification: {
               title,
               body,
-              icon: "/logo-insprotel.png",
-              badge: "/logo-insprotel.png",
+              icon: "https://insprotelgestion.cl/logo-insprotel.png",
+              badge: "https://insprotelgestion.cl/logo-insprotel.png",
+              requireInteraction: true,
+              data: {
+                url: targetUrl,
+              },
             },
             fcmOptions: {
-              link: url || "/",
+              link: targetUrl,
             },
           },
         }),
@@ -79,7 +94,9 @@ export class FirebaseService {
         this.logger.log(`Push enviado OK token ${index + 1}: ${result.value}`);
       } else {
         this.logger.error(
-          `Error enviando push token ${index + 1}: ${result.reason?.message || result.reason}`,
+          `Error enviando push token ${index + 1}: ${
+            result.reason?.message || result.reason
+          }`,
         );
       }
     });
