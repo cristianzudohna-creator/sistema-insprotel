@@ -52,15 +52,29 @@ function MainLayout({ children }) {
   const isSuperadmin = role === "SUPERADMIN";
 
   const canCreateSafetyTalks =
-    role === "SUPERADMIN" || role === "TECNICO" || role === "CONDUCTOR";
+    role === "SUPERADMIN" ||
+    role === "TECNICO" ||
+    role === "CONDUCTOR" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION";
 
-  const canSignSafetyTalks = role === "TECNICO" || role === "CONDUCTOR";
+  const canSignSafetyTalks =
+    role === "SUPERADMIN" ||
+    role === "TECNICO" ||
+    role === "CONDUCTOR" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION";
 
   const canReviewSafetyTalks =
     role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
   function closeMenu() {
     setMenuOpen(false);
+  }
+
+  function handleLogout() {
+    closeMenu();
+    logout();
   }
 
   return (
@@ -82,18 +96,18 @@ function MainLayout({ children }) {
 
         <div className="menu-title">MENÚ PRINCIPAL</div>
 
-        <NavLink
-  to="/inicio"
-  onClick={closeMenu}
-  className={({ isActive }) =>
-    isActive ? "menu-item active-link" : "menu-item"
-  }
->
-  <Home size={20} />
-  <span>Inicio</span>
-</NavLink>
-
         <nav className="menu">
+          <NavLink
+            to="/inicio"
+            onClick={closeMenu}
+            className={({ isActive }) =>
+              isActive ? "menu-item active-link" : "menu-item"
+            }
+          >
+            <Home size={20} />
+            <span>Inicio</span>
+          </NavLink>
+
           {isSuperadmin && (
             <NavLink
               to="/dashboard"
@@ -250,12 +264,12 @@ function MainLayout({ children }) {
               </NavLink>
             </>
           )}
-        </nav>
 
-        <button className="logout-button" onClick={logout} type="button">
-          <LogOut size={18} />
-          <span>Cerrar Sesión</span>
-        </button>
+          <button className="logout-button" onClick={handleLogout} type="button">
+            <LogOut size={18} />
+            <span>Cerrar Sesión</span>
+          </button>
+        </nav>
       </aside>
 
       <div className="main-area">

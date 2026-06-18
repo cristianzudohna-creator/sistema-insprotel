@@ -50,9 +50,14 @@ export async function changePassword(payload) {
 }
 
 export function saveAuth(data) {
-  localStorage.setItem(TOKEN_KEY, data.access_token);
-  localStorage.setItem(OLD_TOKEN_KEY, data.access_token);
-  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  if (data?.access_token) {
+    localStorage.setItem(TOKEN_KEY, data.access_token);
+    localStorage.setItem(OLD_TOKEN_KEY, data.access_token);
+  }
+
+  if (data?.user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  }
 }
 
 export function getToken() {
@@ -71,6 +76,12 @@ export function getUser() {
   }
 }
 
+export function clearAuth() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(OLD_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
 export function isLoggedIn() {
   return Boolean(getToken() && getUser());
 }
@@ -84,18 +95,37 @@ export function mustChangePassword() {
 }
 
 export function logout() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(OLD_TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-
+  clearAuth();
   window.location.href = "/login";
 }
 
-export function authHeaders() {
+export function authHeaders(isJson = true) {
   const token = getToken();
 
   return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    ...(isJson ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+export async function authFetch(url, options = {}) {
+  const token = getToken();
+
+  const headers = {
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    clearAuth();
+    window.location.href = "/login";
+    throw new Error("Sesión expirada");
+  }
+
+  return response;
 }

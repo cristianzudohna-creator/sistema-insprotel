@@ -19,6 +19,14 @@ import "./SafetyTalks.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
+const SAFETY_TALK_PARTICIPANT_ROLES = [
+  "SUPERADMIN",
+  "TECNICO",
+  "CONDUCTOR",
+  "SUPERVISOR",
+  "PREVENCION",
+];
+
 function todayInputDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -43,10 +51,16 @@ function getToken() {
   );
 }
 
-function getCreatorRole(user) {
-  const role = String(user?.role || "").toUpperCase();
+function normalizeRole(role) {
+  return String(role || "").toUpperCase();
+}
 
-  if (role === "CONDUCTOR") return "CONDUCTOR";
+function getCreatorRole(user) {
+  const role = normalizeRole(user?.role);
+
+  if (SAFETY_TALK_PARTICIPANT_ROLES.includes(role)) {
+    return role;
+  }
 
   return "TECNICO";
 }
@@ -153,6 +167,7 @@ function SafetyTalks() {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [signatureLocked, setSignatureLocked] = useState(false);
+  const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [workers, setWorkers] = useState([]);
 
   const [participants, setParticipants] = useState([
@@ -167,7 +182,7 @@ function SafetyTalks() {
     workOrderProject: "",
     workPermitActivity: "",
     worksToDo: "",
-    foremanOrBrigadeName: "",
+    foremanOrBrigadeName: user?.name || "",
     foremanCompany: "INSPROTEL",
     peopleCount: "",
     workTypes: "",
@@ -213,7 +228,19 @@ function SafetyTalks() {
       }
 
       const data = await response.json();
-      setWorkers(Array.isArray(data) ? data : []);
+      const filteredWorkers = Array.isArray(data)
+  ? data.filter((worker) => {
+      const isAllowedRole = SAFETY_TALK_PARTICIPANT_ROLES.includes(
+        normalizeRole(worker.role),
+      );
+
+      const isCurrentUser = String(worker.id) === String(user?.id);
+
+      return isAllowedRole && !isCurrentUser;
+    })
+  : [];
+
+      setWorkers(filteredWorkers);
     } catch (error) {
       console.error(error);
       setWorkers([]);
@@ -236,31 +263,35 @@ function SafetyTalks() {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
 
-    const ctx = canvas.getContext("2d");
-    ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2.4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#111827";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
+   const ctx = canvas.getContext("2d");
+ctx.scale(ratio, ratio);
+ctx.lineWidth = 2.4;
+ctx.lineCap = "round";
+ctx.lineJoin = "round";
+ctx.strokeStyle = "#111827";
+ctx.fillStyle = "#ffffff";
+ctx.fillRect(0, 0, width, height);
 
-    if (previous) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, width, height);
-      img.src = previous;
-    }
-  }
+if (signatureDataUrl) {
+  const img = new Image();
 
-  function getCanvasPoint(event, canvas) {
-    const rect = canvas.getBoundingClientRect();
-    const touch = event.touches?.[0];
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, width, height);
+  };
 
-    return {
-      x: (touch ? touch.clientX : event.clientX) - rect.left,
-      y: (touch ? touch.clientY : event.clientY) - rect.top,
-    };
-  }
+  img.src = signatureDataUrl;
+}
+}
+
+function getCanvasPoint(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = event.touches?.[0];
+
+  return {
+    x: (touch ? touch.clientX : event.clientX) - rect.left,
+    y: (touch ? touch.clientY : event.clientY) - rect.top,
+  };
+}
 
   function startSignature(event) {
     if (signatureLocked) return;
@@ -308,6 +339,7 @@ function SafetyTalks() {
 
     setHasSignature(false);
     setSignatureLocked(false);
+    setSignatureDataUrl("");
   }
 
   function updateField(field, value) {
@@ -363,8 +395,12 @@ function SafetyTalks() {
       .filter((worker) => {
         const name = String(worker.name || "").toLowerCase();
         const rut = String(worker.rut || "").toLowerCase();
+        const role = normalizeRole(worker.role);
 
-        return name.includes(search) || rut.includes(search);
+        return (
+          SAFETY_TALK_PARTICIPANT_ROLES.includes(role) &&
+          (name.includes(search) || rut.includes(search))
+        );
       })
       .slice(0, 8);
   }
@@ -389,7 +425,7 @@ function SafetyTalks() {
               userId: worker.id,
               name: worker.name || "",
               rut: worker.rut || "",
-              role: worker.role || "",
+              role: normalizeRole(worker.role),
               search: worker.name || "",
               isSearching: false,
             }
@@ -419,7 +455,7 @@ function SafetyTalks() {
       workOrderProject: "",
       workPermitActivity: "",
       worksToDo: "",
-      foremanOrBrigadeName: "",
+      foremanOrBrigadeName: user?.name || "",
       foremanCompany: "INSPROTEL",
       peopleCount: "",
       workTypes: "",
@@ -493,6 +529,8 @@ function SafetyTalks() {
         ...form,
         date: todayInputDate(),
         meetingTime: currentInputTime(),
+        foremanOrBrigadeName: user?.name || form.foremanOrBrigadeName || "",
+        foremanCompany: "INSPROTEL",
         creatorRole: getCreatorRole(user),
         createdByName: user?.name || form.createdByName || "",
         createdByRut: user?.rut || form.createdByRut || "",
@@ -622,36 +660,14 @@ function SafetyTalks() {
             />
           </div>
 
-          <div className="grid-3">
-            <div className="field">
-              <label>Jefe de Faena o Brigada</label>
-              <input
-                type="text"
-                value={form.foremanOrBrigadeName}
-                onChange={(e) =>
-                  updateField("foremanOrBrigadeName", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label>Empresa</label>
-              <input
-                type="text"
-                value={form.foremanCompany}
-                onChange={(e) => updateField("foremanCompany", e.target.value)}
-              />
-            </div>
-
-            <div className="field">
-              <label>N° Personas</label>
-              <input
-                type="number"
-                value={form.peopleCount}
-                onChange={(e) => updateField("peopleCount", e.target.value)}
-              />
-            </div>
-          </div>
+         <div className="field">
+  <label>N° Personas</label>
+  <input
+    type="number"
+    value={form.peopleCount}
+    onChange={(e) => updateField("peopleCount", e.target.value)}
+  />
+</div>
         </div>
 
         <div className="safety-card">
@@ -840,7 +856,15 @@ function SafetyTalks() {
               <button
                 type="button"
                 className="signature-lock-button"
-                onClick={() => setSignatureLocked((prev) => !prev)}
+                onClick={() => {
+  const canvas = canvasRef.current;
+
+  if (!signatureLocked && canvas) {
+    setSignatureDataUrl(canvas.toDataURL("image/png"));
+  }
+
+  setSignatureLocked((prev) => !prev);
+}}
                 disabled={!hasSignature}
               >
                 {signatureLocked ? <Unlock size={16} /> : <Lock size={16} />}

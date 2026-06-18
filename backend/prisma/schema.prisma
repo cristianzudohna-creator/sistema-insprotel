@@ -100,8 +100,11 @@ enum SafetyTalkStatus {
 }
 
 enum SafetyTalkCreatorRole {
+  SUPERADMIN
   TECNICO
   CONDUCTOR
+  SUPERVISOR
+  PREVENCION
 }
 
 model User {
@@ -252,6 +255,8 @@ model SafetyTalk {
 
   creatorRole SafetyTalkCreatorRole?
   status      SafetyTalkStatus @default(PENDIENTE_FIRMAS)
+
+  completedAt DateTime?
 
   createdByName         String?
   createdByRut          String?

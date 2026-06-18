@@ -17,6 +17,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Search,
+  Filter,
+  RotateCcw,
 } from "lucide-react";
 
 import "./SafetyTalkHistory.css";
@@ -56,6 +59,18 @@ function authHeaders() {
 function formatDate(value) {
   if (!value) return "Sin fecha";
   return new Date(value).toLocaleDateString("es-CL");
+}
+
+function formatDateTime(value) {
+  if (!value) return "Sin fecha";
+
+  return new Date(value).toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatTime(value) {
@@ -100,7 +115,6 @@ function SafetyTalkHistory() {
   const role = String(user?.role || "").toUpperCase();
 
   const isSuperadmin = role === "SUPERADMIN";
-
   const isReviewer =
     role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
@@ -111,6 +125,127 @@ function SafetyTalkHistory() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [recordToDelete, setRecordToDelete] = useState(null);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
+
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "",
+    dateFrom: "",
+    dateTo: "",
+  });
+
+  function updateFilter(field, value) {
+    setFilters((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  function clearFilters() {
+    setFilters({
+      search: "",
+      status: "",
+      dateFrom: "",
+      dateTo: "",
+    });
+  }
+
+  const filteredRecords = useMemo(() => {
+    return records.filter((record) => {
+      const search = filters.search.trim().toLowerCase();
+
+      const participantsText = (record.participants || [])
+        .map((item) => `${item.name || ""} ${item.rut || ""}`)
+        .join(" ");
+
+      const searchableText = [
+        record.folio,
+        getTitle(record),
+        record.createdByName,
+        record.createdByRut,
+        record.user?.name,
+        record.areaLocationInstallation,
+        record.workOrderProject,
+        record.workPermitActivity,
+        record.foremanOrBrigadeName,
+        record.foremanCompany,
+        participantsText,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !search || searchableText.includes(search);
+
+      const recordStatus = String(record.status || "").toUpperCase();
+      const matchesStatus = !filters.status || recordStatus === filters.status;
+
+      const recordDate = record.completedAt || record.date;
+      const parsedDate = recordDate ? new Date(recordDate) : null;
+
+      let matchesDateFrom = true;
+      let matchesDateTo = true;
+
+      if (filters.dateFrom && parsedDate) {
+        const from = new Date(`${filters.dateFrom}T00:00:00`);
+        matchesDateFrom = parsedDate >= from;
+      }
+
+      if (filters.dateTo && parsedDate) {
+        const to = new Date(`${filters.dateTo}T23:59:59`);
+        matchesDateTo = parsedDate <= to;
+      }
+
+      return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo;
+    });
+  }, [records, filters]);
+
+  async function downloadExcel() {
+    try {
+      setDownloadingExcel(true);
+
+      const params = new URLSearchParams();
+
+      if (filters.dateFrom) {
+        params.append("dateFrom", filters.dateFrom);
+      }
+
+      if (filters.dateTo) {
+        params.append("dateTo", filters.dateTo);
+      }
+
+      const query = params.toString();
+      const url = query
+        ? `${API_URL}/safety-talks/export/excel?${query}`
+        : `${API_URL}/safety-talks/export/excel`;
+
+      const response = await fetch(url, {
+        headers: authHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo descargar el Excel");
+      }
+
+      const blob = await response.blob();
+      const fileUrl = URL.createObjectURL(blob);
+
+      const today = new Date().toLocaleDateString("es-CL").replace(/\//g, "-");
+
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = `charlas_completadas_${today}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(fileUrl);
+    } catch (error) {
+      console.error(error);
+      alert("Error descargando Excel ❌");
+    } finally {
+      setDownloadingExcel(false);
+    }
+  }
 
   async function openPdfPreview(record) {
     if (!record?.id) return;
@@ -239,7 +374,47 @@ function SafetyTalkHistory() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 12,
+            minWidth: "320px",
+          }}
+        >
+          {isAllHistory && (
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                justifyContent: "flex-end",
+                flexWrap: "wrap",
+              }}
+            >
+              {isReviewer && (
+                <button
+                  type="button"
+                  className="history-pdf-button"
+                  onClick={downloadExcel}
+                  disabled={downloadingExcel}
+                >
+                  <FileDown size={18} />
+                  {downloadingExcel ? "Descargando..." : "Descargar Excel"}
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="history-back-button"
+                onClick={() => navigate("/charlas/historial")}
+              >
+                <User size={18} />
+                Ver Mis Reuniones
+              </button>
+            </div>
+          )}
+
           {isReviewer && !isAllHistory && (
             <button
               type="button"
@@ -248,17 +423,6 @@ function SafetyTalkHistory() {
             >
               <FileText size={18} />
               Ver Todas
-            </button>
-          )}
-
-          {isAllHistory && (
-            <button
-              type="button"
-              className="history-back-button"
-              onClick={() => navigate("/charlas/historial")}
-            >
-              <User size={18} />
-              Ver Mis Reuniones
             </button>
           )}
 
@@ -274,6 +438,69 @@ function SafetyTalkHistory() {
       </div>
 
       <div className="history-card">
+        <div className="history-filters">
+          <div className="history-filter-field history-filter-search">
+            <label>
+              <Search size={15} />
+              Buscar
+            </label>
+
+            <input
+              type="text"
+              placeholder="Folio, creador, participante, RUT, proyecto..."
+              value={filters.search}
+              onChange={(e) => updateFilter("search", e.target.value)}
+            />
+          </div>
+
+          <div className="history-filter-field">
+            <label>
+              <Filter size={15} />
+              Estado
+            </label>
+
+            <select
+              value={filters.status}
+              onChange={(e) => updateFilter("status", e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="PENDIENTE_FIRMAS">Pendiente de firmas</option>
+              <option value="COMPLETADA">Completada</option>
+            </select>
+          </div>
+
+          <div className="history-filter-field">
+            <label>Desde</label>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => updateFilter("dateFrom", e.target.value)}
+            />
+          </div>
+
+          <div className="history-filter-field">
+            <label>Hasta</label>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => updateFilter("dateTo", e.target.value)}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="history-back-button"
+            onClick={clearFilters}
+          >
+            <RotateCcw size={16} />
+            Limpiar
+          </button>
+        </div>
+
+        <div className="history-results-count">
+          Mostrando {filteredRecords.length} de {records.length} reuniones
+        </div>
+
         {loading ? (
           <p>Cargando historial...</p>
         ) : records.length === 0 ? (
@@ -282,9 +509,15 @@ function SafetyTalkHistory() {
             <h3>No hay registros</h3>
             <p>Las reuniones guardadas aparecerán aquí.</p>
           </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="history-empty">
+            <FileText size={42} />
+            <h3>No hay resultados</h3>
+            <p>No se encontraron charlas con los filtros aplicados.</p>
+          </div>
         ) : (
           <div className="history-list">
-            {records.map((record) => {
+            {filteredRecords.map((record) => {
               const signedCount = getSignedCount(record);
               const totalParticipants = record.participants?.length || 0;
 
@@ -300,12 +533,14 @@ function SafetyTalkHistory() {
                     <div className="history-meta">
                       <span>
                         <Calendar size={15} />
-                        {formatDate(record.date)}
+                        {formatDate(record.completedAt || record.date)}
                       </span>
 
                       <span>
                         <Clock size={15} />
-                        {formatTime(record.meetingTime)}
+                        {record.completedAt
+                          ? formatDateTime(record.completedAt)
+                          : formatTime(record.meetingTime)}
                       </span>
 
                       <span>
@@ -397,12 +632,18 @@ function SafetyTalkHistory() {
             <div className="detail-grid">
               <div>
                 <span>Fecha</span>
-                <strong>{formatDate(selectedRecord.date)}</strong>
+                <strong>
+                  {formatDate(selectedRecord.completedAt || selectedRecord.date)}
+                </strong>
               </div>
 
               <div>
                 <span>Hora</span>
-                <strong>{formatTime(selectedRecord.meetingTime)}</strong>
+                <strong>
+                  {selectedRecord.completedAt
+                    ? formatDateTime(selectedRecord.completedAt)
+                    : formatTime(selectedRecord.meetingTime)}
+                </strong>
               </div>
 
               <div>
@@ -550,9 +791,7 @@ function SafetyTalkHistory() {
 
                       <p>
                         Descanso:{" "}
-                        <strong>
-                          {participant.compliesRest ? "Sí" : "No"}
-                        </strong>{" "}
+                        <strong>{participant.compliesRest ? "Sí" : "No"}</strong>{" "}
                         · Firma:{" "}
                         <strong>
                           {participant.signatureUrl ? "Firmado" : "Pendiente"}

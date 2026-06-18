@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -107,15 +108,21 @@ export class SafetyTalksController {
   }
 
   @Get("pending-signatures")
-async pendingSignatures(@Req() req: any) {
-  return this.safetyTalksService.pendingSignatures(
-    req.user,
-  );
-}
+  async pendingSignatures(@Req() req: any) {
+    return this.safetyTalksService.pendingSignatures(req.user);
+  }
 
-  @Get("pending-signatures")
-  async findPendingSignatures(@Req() req: any) {
-    return this.safetyTalksService.findPendingSignatures(req.user);
+  @Get("export/excel")
+  async exportExcel(
+    @Req() req: any,
+    @Res() res: Response,
+    @Query("dateFrom") dateFrom?: string,
+    @Query("dateTo") dateTo?: string,
+  ) {
+    return this.safetyTalksService.exportExcel(req.user, res, {
+      dateFrom,
+      dateTo,
+    });
   }
 
   @Get(":id")
@@ -148,11 +155,7 @@ async pendingSignatures(@Req() req: any) {
     @Param("id") id: string,
     @UploadedFile() signature: Express.Multer.File,
   ) {
-    return this.safetyTalksService.signTalk(
-      req.user,
-      Number(id),
-      signature,
-    );
+    return this.safetyTalksService.signTalk(req.user, Number(id), signature);
   }
 
   @Delete(":id")

@@ -7,6 +7,7 @@ import type { Response } from "express";
 import PDFDocument = require("pdfkit");
 import * as fs from "fs";
 import * as path from "path";
+import * as XLSX from "xlsx";
 
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -33,6 +34,22 @@ export class SafetyTalksService {
 
     try {
       return new Date(value).toLocaleDateString("es-CL");
+    } catch {
+      return "—";
+    }
+  }
+
+  private formatDateTime(value: any) {
+    if (!value) return "—";
+
+    try {
+      return new Date(value).toLocaleString("es-CL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
       return "—";
     }
@@ -172,7 +189,9 @@ export class SafetyTalksService {
         worksToDo: data.worksToDo || null,
         foremanOrBrigadeName: data.foremanOrBrigadeName || null,
         foremanCompany: data.foremanCompany || null,
-        peopleCount: Number(data.peopleCount || participants.length || 0),
+        peopleCount: Number.isFinite(Number(data.peopleCount))
+          ? Number(data.peopleCount)
+          : participants.length || 0,
         workTypes: data.workTypes || null,
         significantRisks: data.significantRisks || null,
         analyzedAccident: data.analyzedAccident || null,
@@ -251,6 +270,7 @@ export class SafetyTalksService {
         where: { id: updated.id },
         data: {
           status: "COMPLETADA",
+          completedAt: new Date(),
         },
         include: {
           participants: true,
@@ -361,6 +381,194 @@ export class SafetyTalksService {
     });
   }
 
+  async exportExcel(
+  currentUser: any,
+  res: Response,
+  filters?: {
+    dateFrom?: string;
+    dateTo?: string;
+  },
+) {
+
+    const where: any = {
+  status: "COMPLETADA",
+};
+
+if (filters?.dateFrom || filters?.dateTo) {
+  where.completedAt = {};
+
+  if (filters.dateFrom) {
+    where.completedAt.gte = new Date(
+      `${filters.dateFrom}T00:00:00`,
+    );
+  }
+
+  if (filters.dateTo) {
+    where.completedAt.lte = new Date(
+      `${filters.dateTo}T23:59:59`,
+    );
+  }
+}
+
+const talks = await this.prisma.safetyTalk.findMany({
+  where,
+  include: {
+    participants: true,
+    user: true,
+  },
+  orderBy: {
+    completedAt: "desc",
+  },
+});
+
+    const rows: any[] = [];
+
+    for (const talk of talks) {
+      const participants = talk.participants || [];
+
+      if (!participants.length) {
+        rows.push({
+          Folio: this.text(talk.folio),
+          Estado: this.text(talk.status),
+          "Fecha creación": this.formatDateTime(talk.createdAt),
+          "Fecha completada": this.formatDateTime(talk.completedAt),
+          "Hora reunión": this.text(talk.meetingTime),
+          "Área / Lugar": this.text(talk.areaLocationInstallation),
+          Proyecto: this.text(talk.workOrderProject),
+          "Permiso de faena": this.text(talk.workPermitActivity),
+          "Trabajos a realizar": this.text(talk.worksToDo),
+          "Responsable charla": this.text(talk.foremanOrBrigadeName),
+          Empresa: this.text(talk.foremanCompany),
+          "Número personas": this.text(talk.peopleCount),
+          "Tipo trabajos": this.text(talk.workTypes),
+          Riesgos: this.text(talk.significantRisks),
+          "Accidente analizado": this.text(talk.analyzedAccident),
+          "Medida de control 1": this.text(talk.controlMeasure1),
+          "Medida de control 2": this.text(talk.controlMeasure2),
+          "Medida de control 3": this.text(talk.controlMeasure3),
+          "Medida de control 4": this.text(talk.controlMeasure4),
+          "Medida de control 5": this.text(talk.controlMeasure5),
+          "Medida de control 6": this.text(talk.controlMeasure6),
+          "Medida de control 7": this.text(talk.controlMeasure7),
+          "Medida de control 8": this.text(talk.controlMeasure8),
+          "Medida de control 9": this.text(talk.controlMeasure9),
+          "Medida de control 10": this.text(talk.controlMeasure10),
+          "Medida de control 11": this.text(talk.controlMeasure11),
+          "Medida de control 12": this.text(talk.controlMeasure12),
+          "Creado por": this.text(talk.createdByName),
+          "Rut creador": this.text(talk.createdByRut),
+          "Firmas participantes": "0",
+          "Nombre participante": "—",
+          "Rut participante": "—",
+          Descanso: "—",
+          Firmó: "—",
+          "Fecha firma": "—",
+        });
+      }
+
+      for (const participant of participants) {
+        rows.push({
+          Folio: this.text(talk.folio),
+          Estado: this.text(talk.status),
+          "Fecha creación": this.formatDateTime(talk.createdAt),
+          "Fecha completada": this.formatDateTime(talk.completedAt),
+          "Hora reunión": this.text(talk.meetingTime),
+          "Área / Lugar": this.text(talk.areaLocationInstallation),
+          Proyecto: this.text(talk.workOrderProject),
+          "Permiso de faena": this.text(talk.workPermitActivity),
+          "Trabajos a realizar": this.text(talk.worksToDo),
+          "Responsable charla": this.text(talk.foremanOrBrigadeName),
+          Empresa: this.text(talk.foremanCompany),
+          "Número personas": this.text(talk.peopleCount),
+          "Tipo trabajos": this.text(talk.workTypes),
+          Riesgos: this.text(talk.significantRisks),
+          "Accidente analizado": this.text(talk.analyzedAccident),
+          "Medida de control 1": this.text(talk.controlMeasure1),
+          "Medida de control 2": this.text(talk.controlMeasure2),
+          "Medida de control 3": this.text(talk.controlMeasure3),
+          "Medida de control 4": this.text(talk.controlMeasure4),
+          "Medida de control 5": this.text(talk.controlMeasure5),
+          "Medida de control 6": this.text(talk.controlMeasure6),
+          "Medida de control 7": this.text(talk.controlMeasure7),
+          "Medida de control 8": this.text(talk.controlMeasure8),
+          "Medida de control 9": this.text(talk.controlMeasure9),
+          "Medida de control 10": this.text(talk.controlMeasure10),
+          "Medida de control 11": this.text(talk.controlMeasure11),
+          "Medida de control 12": this.text(talk.controlMeasure12),
+          "Creado por": this.text(talk.createdByName),
+          "Rut creador": this.text(talk.createdByRut),
+          "Firmas participantes": `${participants.filter((item) => item.signatureUrl).length}/${participants.length}`,
+          "Nombre participante": this.text(participant.name),
+          "Rut participante": this.text(participant.rut),
+          Descanso: participant.compliesRest ? "Sí" : "No",
+          Firmó: participant.signatureUrl ? "Sí" : "No",
+          "Fecha firma": this.formatDateTime(participant.signedAt),
+        });
+      }
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    worksheet["!cols"] = [
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 14 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 24 },
+      { wch: 40 },
+      { wch: 26 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 35 },
+      { wch: 35 },
+      { wch: 35 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 30 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 20 },
+      { wch: 26 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 20 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Charlas completadas");
+
+    const buffer = XLSX.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    });
+
+    const today = new Date().toLocaleDateString("es-CL").replace(/\//g, "-");
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="charlas_completadas_${today}.xlsx"`,
+    );
+
+    return res.send(buffer);
+  }
+
   async generatePdf(currentUser: any, id: number, res: Response) {
     const talk = await this.findOne(currentUser, id);
 
@@ -397,17 +605,16 @@ export class SafetyTalksService {
     };
 
     const isoCandidates = [
-  path.join(process.cwd(), "uploads", "branding", "iso.png"),
-  path.join(process.cwd(), "uploads", "iso.png"),
-];
+      path.join(process.cwd(), "uploads", "branding", "iso.png"),
+      path.join(process.cwd(), "uploads", "iso.png"),
+    ];
 
-const logoCandidates = [
-  path.join(process.cwd(), "uploads", "branding", "logo-insprotel.png"),
-  path.join(process.cwd(), "uploads", "logo-insprotel.png"),
-];
+    const logoCandidates = [
+      path.join(process.cwd(), "uploads", "branding", "logo-insprotel.png"),
+      path.join(process.cwd(), "uploads", "logo-insprotel.png"),
+    ];
 
-const isoPath = isoCandidates.find((item) => fs.existsSync(item));
-
+    const isoPath = isoCandidates.find((item) => fs.existsSync(item));
     const logoPath = logoCandidates.find((item) => fs.existsSync(item));
 
     const drawCell = (
@@ -461,7 +668,7 @@ const isoPath = isoCandidates.find((item) => fs.existsSync(item));
 
     let y = 18;
 
-    drawCell(margin, y, contentWidth, 34, "", {});
+    drawCell(margin, y, contentWidth, 42, "", {});
     doc
       .font("Helvetica-Bold")
       .fontSize(12)
@@ -484,31 +691,27 @@ const isoPath = isoCandidates.find((item) => fs.existsSync(item));
         },
       );
 
-    // ISO a la izquierda
-if (isoPath) {
-  try {
-    doc.image(isoPath, margin + 6, y + 3, {
-      width: 130,
-      height: 28,
-    });
-  } catch {
-    // ignorar
-  }
-}
+    if (logoPath) {
+      try {
+        doc.image(logoPath, margin + 12, y + 7, {
+          fit: [120, 26],
+        });
+      } catch {
+        // ignorar
+      }
+    }
 
-// Logo Insprotel a la derecha
-if (logoPath) {
-  try {
-    doc.image(logoPath, pageWidth - margin - 110, y + 5, {
-      width: 100,
-      height: 22,
-    });
-  } catch {
-    // ignorar
-  }
-}
+    if (isoPath) {
+      try {
+        doc.image(isoPath, pageWidth - margin - 120, y + 3, {
+          fit: [190, 38],
+        });
+      } catch {
+        // ignorar
+      }
+    }
 
-    y += 34;
+    y += 42;
 
     drawCell(margin, y, 120, 16, "Área, lugar, instalación:", {
       bold: true,
@@ -525,9 +728,28 @@ if (logoPath) {
       bold: true,
       fill: gray,
     });
-    drawCell(margin + contentWidth - 55, y, 55, 16, this.formatDate(talk.date), {
-      align: "center",
-    });
+
+    const finalDate = talk.completedAt || talk.date;
+
+    drawCell(
+      margin + contentWidth - 55,
+      y,
+      55,
+      16,
+      finalDate
+        ? new Date(finalDate).toLocaleString("es-CL", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "—",
+      {
+        align: "center",
+        fontSize: 5.5,
+      },
+    );
 
     y += 16;
 
@@ -908,6 +1130,7 @@ if (logoPath) {
         where: { id },
         data: {
           status: "COMPLETADA",
+          completedAt: new Date(),
         },
         include: {
           participants: true,

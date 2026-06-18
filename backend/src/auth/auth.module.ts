@@ -14,7 +14,7 @@ import { JwtStrategy } from "./jwt.strategy";
     JwtModule.register({
       secret: process.env.JWT_SECRET || "insprotel_secret_dev",
       signOptions: {
-        expiresIn: "8h",
+        expiresIn: "365d",
       },
     }),
   ],
