@@ -20,9 +20,16 @@ export class SafetyTalksService {
   ) {}
 
   private text(value: any) {
-    if (value === null || value === undefined || value === "") return "—";
-    return String(value);
-  }
+  if (value === null || value === undefined || value === "") return "—";
+
+  return String(value)
+    .replace(/\r/g, "")
+    .replace(/\u000d/g, "")
+    .replace(/\u2028/g, "\n")
+    .replace(/\u2029/g, "\n")
+    .replace(/[^\S\n]+$/gm, "")
+    .trim();
+}
 
   private toDate(value: any) {
     if (!value) return new Date();
