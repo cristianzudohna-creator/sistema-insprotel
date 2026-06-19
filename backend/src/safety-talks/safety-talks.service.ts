@@ -32,9 +32,16 @@ export class SafetyTalksService {
 }
 
   private toDate(value: any) {
-    if (!value) return new Date();
-    return new Date(value);
+  if (!value) return new Date();
+
+  if (typeof value === "string" && value.includes("-")) {
+    const [year, month, day] = value.split("-").map(Number);
+
+    return new Date(year, month - 1, day);
   }
+
+  return new Date(value);
+}
 
   private formatDate(value: any) {
     if (!value) return "—";
@@ -737,26 +744,29 @@ const talks = await this.prisma.safetyTalk.findMany({
     });
 
     const finalDate = talk.completedAt || talk.date;
+    const pdfDateText = talk.completedAt
+  ? new Date(talk.completedAt).toLocaleString("es-CL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  : `${new Date(talk.date).toLocaleDateString("es-CL")} ${this.text(
+      talk.meetingTime,
+    )}`;
 
     drawCell(
-      margin + contentWidth - 55,
-      y,
-      55,
-      16,
-      finalDate
-        ? new Date(finalDate).toLocaleString("es-CL", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "—",
-      {
-        align: "center",
-        fontSize: 5.5,
-      },
-    );
+  margin + contentWidth - 55,
+  y,
+  55,
+  16,
+  pdfDateText,
+  {
+    align: "center",
+    fontSize: 5.5,
+  },
+);
 
     y += 16;
 

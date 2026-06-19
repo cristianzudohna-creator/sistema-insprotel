@@ -269,6 +269,39 @@ function SafetyTalkHistory() {
     }
   }
 
+  async function downloadPdf(record) {
+  if (!record?.id) return;
+
+  try {
+    const response = await fetch(
+      `${API_URL}/safety-talks/${record.id}/pdf`,
+      {
+        headers: authHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el PDF");
+    }
+
+    const blob = await response.blob();
+    const fileUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = `charla-${record.id}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(fileUrl);
+  } catch (error) {
+    console.error(error);
+    alert("Error descargando PDF ❌");
+  }
+}
+
   async function loadRecords() {
     try {
       setLoading(true);
@@ -588,6 +621,15 @@ function SafetyTalkHistory() {
                       Vista previa PDF
                     </button>
 
+                    <button
+  className="history-pdf-button"
+  onClick={() => downloadPdf(record)}
+  type="button"
+>
+  <FileDown size={17} />
+  Descargar PDF
+</button>
+
                     {isSuperadmin && (
                       <button
                         className="history-delete-button"
@@ -816,6 +858,15 @@ function SafetyTalkHistory() {
                 <FileDown size={17} />
                 Vista previa PDF
               </button>
+
+              <button
+  type="button"
+  className="history-pdf-button detail-pdf-button"
+  onClick={() => downloadPdf(selectedRecord)}
+>
+  <FileDown size={17} />
+  Descargar PDF
+</button>
 
               {isSuperadmin && (
                 <button

@@ -28,7 +28,13 @@ const SAFETY_TALK_PARTICIPANT_ROLES = [
 ];
 
 function todayInputDate() {
-  return new Date().toISOString().slice(0, 10);
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function currentInputTime() {
@@ -526,15 +532,13 @@ function getCanvasPoint(event, canvas) {
       const formData = new FormData();
 
       Object.entries({
-        ...form,
-        date: todayInputDate(),
-        meetingTime: currentInputTime(),
-        foremanOrBrigadeName: user?.name || form.foremanOrBrigadeName || "",
-        foremanCompany: "INSPROTEL",
-        creatorRole: getCreatorRole(user),
-        createdByName: user?.name || form.createdByName || "",
-        createdByRut: user?.rut || form.createdByRut || "",
-      }).forEach(([key, value]) => {
+  ...form,
+  foremanOrBrigadeName: user?.name || form.foremanOrBrigadeName || "",
+  foremanCompany: "INSPROTEL",
+  creatorRole: getCreatorRole(user),
+  createdByName: user?.name || form.createdByName || "",
+  createdByRut: user?.rut || form.createdByRut || "",
+}).forEach(([key, value]) => {
         formData.append(key, value ?? "");
       });
 
