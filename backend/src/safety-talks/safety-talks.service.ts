@@ -746,12 +746,13 @@ const talks = await this.prisma.safetyTalk.findMany({
     const finalDate = talk.completedAt || talk.date;
     const pdfDateText = talk.completedAt
   ? new Date(talk.completedAt).toLocaleString("es-CL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+  timeZone: "America/Santiago",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+})
   : `${new Date(talk.date).toLocaleDateString("es-CL")} ${this.text(
       talk.meetingTime,
     )}`;
