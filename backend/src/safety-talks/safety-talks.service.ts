@@ -23,6 +23,20 @@ export class SafetyTalksService {
   if (value === null || value === undefined || value === "") return "—";
 
   return String(value)
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&ntilde;/g, "ñ")
+    .replace(/&Ntilde;/g, "Ñ")
+    .replace(/&aacute;/g, "á")
+    .replace(/&eacute;/g, "é")
+    .replace(/&iacute;/g, "í")
+    .replace(/&oacute;/g, "ó")
+    .replace(/&uacute;/g, "ú")
+    .replace(/&Aacute;/g, "Á")
+    .replace(/&Eacute;/g, "É")
+    .replace(/&Iacute;/g, "Í")
+    .replace(/&Oacute;/g, "Ó")
+    .replace(/&Uacute;/g, "Ú")
     .replace(/\r/g, "")
     .replace(/\u000d/g, "")
     .replace(/\u2028/g, "\n")
@@ -203,9 +217,7 @@ export class SafetyTalksService {
         worksToDo: data.worksToDo || null,
         foremanOrBrigadeName: data.foremanOrBrigadeName || null,
         foremanCompany: data.foremanCompany || null,
-        peopleCount: Number.isFinite(Number(data.peopleCount))
-          ? Number(data.peopleCount)
-          : participants.length || 0,
+        peopleCount: 1 + participants.length,
         workTypes: data.workTypes || null,
         significantRisks: data.significantRisks || null,
         analyzedAccident: data.analyzedAccident || null,
@@ -743,7 +755,6 @@ const talks = await this.prisma.safetyTalk.findMany({
       fill: gray,
     });
 
-    const finalDate = talk.completedAt || talk.date;
     const pdfDateText = talk.completedAt
   ? new Date(talk.completedAt).toLocaleString("es-CL", {
   timeZone: "America/Santiago",
@@ -814,7 +825,7 @@ const talks = await this.prisma.safetyTalk.findMany({
     });
 
     const totalPeople =
-      Number(talk.peopleCount) || 1 + (talk.participants?.length || 0);
+  1 + (talk.participants?.length || 0);
 
     drawCell(margin + 480, y, contentWidth - 480, 16, String(totalPeople), {
       align: "center",

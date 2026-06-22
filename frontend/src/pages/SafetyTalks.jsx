@@ -190,7 +190,6 @@ function SafetyTalks() {
     worksToDo: "",
     foremanOrBrigadeName: user?.name || "",
     foremanCompany: "INSPROTEL",
-    peopleCount: "",
     workTypes: "",
     significantRisks: "",
     analyzedAccident: "",
@@ -463,7 +462,6 @@ function getCanvasPoint(event, canvas) {
       worksToDo: "",
       foremanOrBrigadeName: user?.name || "",
       foremanCompany: "INSPROTEL",
-      peopleCount: "",
       workTypes: "",
       significantRisks: "",
       analyzedAccident: "",
@@ -543,9 +541,9 @@ function getCanvasPoint(event, canvas) {
       });
 
       formData.append(
-        "peopleCount",
-        String(Number(form.peopleCount || filledParticipants.length)),
-      );
+  "peopleCount",
+  String(filledParticipants.length + 1),
+);
 
       formData.append(
         "participants",
@@ -664,14 +662,6 @@ function getCanvasPoint(event, canvas) {
             />
           </div>
 
-         <div className="field">
-  <label>N° Personas</label>
-  <input
-    type="number"
-    value={form.peopleCount}
-    onChange={(e) => updateField("peopleCount", e.target.value)}
-  />
-</div>
         </div>
 
         <div className="safety-card">
