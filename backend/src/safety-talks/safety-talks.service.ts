@@ -42,6 +42,8 @@ export class SafetyTalksService {
     .replace(/\u2028/g, "\n")
     .replace(/\u2029/g, "\n")
     .replace(/[^\S\n]+$/gm, "")
+    .replace(/\s+/g, " ")
+.replace(/-\s+/g, " ")
     .trim();
 }
 
