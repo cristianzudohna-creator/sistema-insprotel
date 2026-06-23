@@ -633,7 +633,15 @@ setSignatureEnabled(true);
         formData.append("photos", photo.file);
       });
 
-      formData.append("driverSignature", signatureFile);
+      if (
+  loggedRole === "SUPERVISOR" ||
+  loggedRole === "PREVENCION" ||
+  loggedRole === "SUPERADMIN"
+) {
+  formData.append("inspectorSignature", signatureFile);
+} else {
+  formData.append("driverSignature", signatureFile);
+}
 
       const response = await fetch(`${API_URL}/vehicle-checklist`, {
         method: "POST",
