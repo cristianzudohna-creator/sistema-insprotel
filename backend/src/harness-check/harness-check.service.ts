@@ -227,9 +227,9 @@ if (!this.isSuperadmin(user) && !isOwner && !isAssignedTechnician && !isReviewer
     },
   });
 
-  if (!created.supervisorSignatureUrl) {
-    await this.notifyPendingHarnessSignature(created);
-  }
+  if (!created.technicianSignatureUrl) {
+  await this.notifyPendingHarnessSignature(created);
+}
 
   return created;
 }
