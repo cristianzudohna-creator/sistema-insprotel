@@ -89,26 +89,31 @@ private isTechnician(user: any) {
 }
 
 private async notifyPendingHarnessSignature(check: any) {
-  const reviewers = await this.prisma.user.findMany({
+  const technicianName = String(check?.technicianName || "").trim();
+
+  if (!technicianName) {
+    return;
+  }
+
+  const technician = await this.prisma.user.findFirst({
     where: {
       isActive: true,
-      role: {
-        in: ["SUPERVISOR", "PREVENCION"],
-      },
+      role: "TECNICO",
+      name: technicianName,
     },
   });
 
-  await Promise.all(
-    reviewers.map((reviewer) =>
-      this.notificationsService.create(
-        reviewer.id,
-        "Check list de arnés pendiente de firma",
-        `Tienes un check list de arnés pendiente de firma${
-          check?.folio ? ` (${check.folio})` : ""
-        }.`,
-        "/arnes/pendientes-firma",
-      ),
-    ),
+  if (!technician) {
+    return;
+  }
+
+  await this.notificationsService.create(
+    technician.id,
+    "Check list de arnés pendiente de firma",
+    `Tienes un check list de arnés pendiente de firma${
+      check?.folio ? ` (${check.folio})` : ""
+    }.`,
+    "/arnes/pendientes-firma",
   );
 }
 
