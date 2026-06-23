@@ -17,6 +17,7 @@ enum Role {
 
 enum VehicleCheckStatus {
   PENDIENTE
+  PENDIENTE_FIRMAS
   COMPLETADO
   OBSERVADO
 }
@@ -90,6 +91,7 @@ enum ToolsDriverItemStatus {
 enum DocumentStatus {
   VIGENTE
   VENCIDA
+  NO_APLICA
 }
 
 enum SafetyTalkStatus {
@@ -156,13 +158,37 @@ model VehicleCheckList {
   patent              String
   mileage             Int?
   maintenanceUpToDate String?
+  padron              String?
 
   vehicleType  String?
   vehicleModel String?
 
-  driverName         String
-  supervisorName     String?
-  driverSignatureUrl String?
+  driverName   String
+  driverUserId Int?
+  supervisorUserId Int?
+
+  supervisorName String?
+  inspectorName  String?
+
+  driverSignatureUrl    String?
+  inspectorSignatureUrl String?
+
+  supervisorSignatureUrl String?
+  preventionSignatureUrl String?
+  superadminSignatureUrl String?
+
+  driverSignedAt    DateTime?
+  inspectorSignedAt DateTime?
+
+  supervisorSignedAt DateTime?
+  preventionSignedAt DateTime?
+  superadminSignedAt DateTime?
+
+  preventionName String?
+  superadminName String?
+
+  createdByRole Role?
+  completedAt   DateTime?
 
   technicalReview       DateTime?
   technicalReviewStatus DocumentStatus?
@@ -181,7 +207,7 @@ model VehicleCheckList {
 
   generalObservation String?
 
-  status VehicleCheckStatus @default(PENDIENTE)
+  status VehicleCheckStatus @default(PENDIENTE_FIRMAS)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -310,6 +336,8 @@ model HarnessCheck {
 
   folio String?
   date  DateTime @default(now())
+
+  expirationDate DateTime?
 
   contract                String?
   technicianName          String?

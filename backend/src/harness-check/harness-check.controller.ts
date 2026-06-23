@@ -8,10 +8,14 @@ import {
   Req,
   Res,
   UploadedFiles,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { FileFieldsInterceptor } from "@nestjs/platform-express";
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from "@nestjs/platform-express";
 import type { Response } from "express";
 import { diskStorage } from "multer";
 import * as fs from "fs";
@@ -89,6 +93,54 @@ export class HarnessCheckController {
   async findAllForSuperadmin(@Req() req: any) {
     return this.harnessCheckService.findAllForSuperadmin(req.user);
   }
+
+  @Get("pending-signatures")
+async pendingSignatures(@Req() req: any) {
+  return this.harnessCheckService.pendingSignatures(req.user);
+}
+
+@Post(":id/sign-supervisor")
+@UseInterceptors(
+  FileInterceptor("signature", {
+    storage: diskStorage({
+      destination: uploadDir,
+      filename: (_req, file, callback) => {
+        const uniqueName = `${Date.now()}-${Math.round(
+          Math.random() * 1e9,
+        )}${path.extname(file.originalname)}`;
+
+        callback(null, uniqueName);
+      },
+    }),
+    fileFilter: (_req, file, callback) => {
+      if (!file.mimetype.startsWith("image/")) {
+        return callback(new Error("Solo se permiten imágenes"), false);
+      }
+
+      callback(null, true);
+    },
+    limits: {
+      files: 1,
+      fileSize: 10 * 1024 * 1024,
+    },
+  }),
+)
+async signSupervisor(
+  @Req() req: any,
+  @Param("id") id: string,
+  @UploadedFile() signature: Express.Multer.File,
+) {
+  return this.harnessCheckService.signSupervisor(
+    req.user,
+    Number(id),
+    signature,
+  );
+}
+
+@Get("finished")
+async finished(@Req() req: any) {
+  return this.harnessCheckService.finished(req.user);
+}
 
   @Get(":id")
   async findOne(@Req() req: any, @Param("id") id: string) {

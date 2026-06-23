@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import VehicleCheckList from "./pages/VehicleCheckList";
 import VehicleCheckHistory from "./pages/VehicleCheckHistory";
+import VehicleCheckPendingSignatures from "./pages/VehicleCheckPendingSignatures";
 import Login from "./pages/Login";
 import UsersAdmin from "./pages/UsersAdmin";
 import ChangePassword from "./pages/ChangePassword";
@@ -14,6 +15,7 @@ import SafetyTalkHistory from "./pages/SafetyTalkHistory";
 import SafetyTalkPendingSignatures from "./pages/SafetyTalkPendingSignatures";
 import HarnessCheck from "./pages/HarnessCheck";
 import HarnessCheckHistory from "./pages/HarnessCheckHistory";
+import HarnessPendingSignatures from "./pages/HarnessPendingSignatures";
 import LadderCheck from "./pages/LadderCheck";
 import LadderCheckHistory from "./pages/LadderCheckHistory";
 import ScissorLadderCheck from "./pages/ScissorLadderCheck";
@@ -29,6 +31,20 @@ import {
   mustChangePassword,
 } from "./auth/auth";
 
+function getRole() {
+  try {
+    const raw =
+      localStorage.getItem("user") ||
+      localStorage.getItem("me") ||
+      localStorage.getItem("profile");
+
+    const user = raw ? JSON.parse(raw) : null;
+    return String(user?.role || "").toUpperCase();
+  } catch {
+    return "";
+  }
+}
+
 function ProtectedRoute({ children }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
   if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
@@ -39,6 +55,32 @@ function SuperadminRoute({ children }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
   if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
   if (!isSuperadmin()) return <Navigate to="/inicio" replace />;
+  return children;
+}
+
+function VehicleChecklistRoute({ children }) {
+  const role = getRole();
+
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
+
+  if (!["SUPERADMIN", "SUPERVISOR", "PREVENCION", "CONDUCTOR"].includes(role)) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return children;
+}
+
+function HarnessRoute({ children }) {
+  const role = getRole();
+
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
+
+  if (!["SUPERADMIN", "SUPERVISOR", "PREVENCION", "TECNICO"].includes(role)) {
+    return <Navigate to="/inicio" replace />;
+  }
+
   return children;
 }
 
@@ -58,8 +100,32 @@ function AppRoutes() {
           }
         />
 
-        <Route path="/check-vehiculos" element={<VehicleCheckList />} />
-        <Route path="/check-vehiculos/historial" element={<VehicleCheckHistory />} />
+        <Route
+          path="/check-vehiculos"
+          element={
+            <VehicleChecklistRoute>
+              <VehicleCheckList />
+            </VehicleChecklistRoute>
+          }
+        />
+
+        <Route
+          path="/check-vehiculos/historial"
+          element={
+            <VehicleChecklistRoute>
+              <VehicleCheckHistory />
+            </VehicleChecklistRoute>
+          }
+        />
+
+        <Route
+          path="/check-vehiculos/pendientes-firma"
+          element={
+            <VehicleChecklistRoute>
+              <VehicleCheckPendingSignatures />
+            </VehicleChecklistRoute>
+          }
+        />
 
         <Route
           path="/check-vehiculos/historial-todos"
@@ -73,25 +139,37 @@ function AppRoutes() {
         {/* CHARLAS */}
         <Route path="/charlas" element={<SafetyTalks />} />
         <Route path="/charlas/historial" element={<SafetyTalkHistory />} />
-        <Route path="/charlas/pendientes" element={<SafetyTalkPendingSignatures />} />
+        <Route
+          path="/charlas/pendientes"
+          element={<SafetyTalkPendingSignatures />}
+        />
         <Route path="/charlas/historial-todos" element={<SafetyTalkHistory />} />
 
         {/* ARNES */}
         <Route
           path="/arnes"
           element={
-            <SuperadminRoute>
+            <HarnessRoute>
               <HarnessCheck />
-            </SuperadminRoute>
+            </HarnessRoute>
           }
         />
 
         <Route
           path="/arnes/historial"
           element={
-            <SuperadminRoute>
+            <HarnessRoute>
               <HarnessCheckHistory />
-            </SuperadminRoute>
+            </HarnessRoute>
+          }
+        />
+
+        <Route
+          path="/arnes/pendientes-firma"
+          element={
+            <HarnessRoute>
+              <HarnessPendingSignatures />
+            </HarnessRoute>
           }
         />
 

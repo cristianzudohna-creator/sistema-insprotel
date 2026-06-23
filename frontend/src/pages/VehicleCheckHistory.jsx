@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Trash2,
   FileDown,
+  PenLine,
 } from "lucide-react";
 
 import "./VehicleCheckHistory.css";
@@ -53,11 +54,15 @@ function authHeaders() {
 function formatDate(value) {
   if (!value) return "Sin fecha";
 
-  const [year, month, day] = String(value)
-    .split("T")[0]
-    .split("-");
-
+  const [year, month, day] = String(value).split("T")[0].split("-");
   return `${day}-${month}-${year}`;
+}
+
+function statusLabel(status) {
+  if (status === "COMPLETADO") return "Completado";
+  if (status === "PENDIENTE_FIRMAS") return "Pendiente firmas";
+  if (status === "OBSERVADO") return "Observado";
+  return "Pendiente";
 }
 
 function VehicleCheckHistory() {
@@ -65,8 +70,13 @@ function VehicleCheckHistory() {
   const location = useLocation();
 
   const user = useMemo(() => getUser(), []);
-  const isSuperadmin = String(user?.role || "").toUpperCase() === "SUPERADMIN";
-  const isAllHistory = location.pathname.includes("historial-todos");
+  const role = String(user?.role || "").toUpperCase();
+  const isSuperadmin = role === "SUPERADMIN";
+const canSeeAllHistory =
+  role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
+
+const isAllHistory =
+  location.pathname.includes("historial-todos") || canSeeAllHistory;
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,16 +90,11 @@ function VehicleCheckHistory() {
     if (!record?.id) return;
 
     try {
-      const response = await fetch(
-        `${API_URL}/vehicle-checklist/${record.id}/pdf`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response = await fetch(`${API_URL}/vehicle-checklist/${record.id}/pdf`, {
+        headers: authHeaders(),
+      });
 
-      if (!response.ok) {
-        throw new Error("No se pudo abrir el PDF");
-      }
+      if (!response.ok) throw new Error("No se pudo abrir el PDF");
 
       const blob = await response.blob();
       const fileUrl = URL.createObjectURL(blob);
@@ -107,18 +112,15 @@ function VehicleCheckHistory() {
 
       const endpoint = isAllHistory
         ? `${API_URL}/vehicle-checklist/all`
-        : `${API_URL}/vehicle-checklist`;
+        : `${API_URL}/vehicle-checklist/finished`;
 
       const response = await fetch(endpoint, {
         headers: authHeaders(),
       });
 
-      if (!response.ok) {
-        throw new Error("Error cargando historial");
-      }
+      if (!response.ok) throw new Error("Error cargando historial");
 
       const data = await response.json();
-      console.log("CHECKLISTS:", data);
       setRecords(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
@@ -150,13 +152,9 @@ function VehicleCheckHistory() {
         },
       );
 
-      if (!response.ok) {
-        throw new Error("Error eliminando check list");
-      }
+      if (!response.ok) throw new Error("Error eliminando check list");
 
-      setRecords((prev) =>
-        prev.filter((item) => item.id !== recordToDelete.id),
-      );
+      setRecords((prev) => prev.filter((item) => item.id !== recordToDelete.id));
 
       if (selectedRecord?.id === recordToDelete.id) {
         setSelectedRecord(null);
@@ -172,49 +170,30 @@ function VehicleCheckHistory() {
   }
 
   useEffect(() => {
-    if (isAllHistory && !isSuperadmin) {
-      alert("No tienes permiso para ver todos los check list");
-      navigate("/check-vehiculos/historial");
-      return;
-    }
+    if (isAllHistory && !canSeeAllHistory) {
+  alert("No tienes permiso para ver todos los check list");
+  navigate("/check-vehiculos/historial");
+  return;
+}
 
     loadRecords();
   }, [isAllHistory]);
 
   const filteredRecords = records.filter((record) => {
-  const recordDate = record.date
-    ? new Date(record.date).toISOString().split("T")[0]
-    : "";
+    const recordDate = record.date
+      ? String(record.date).split("T")[0]
+      : "";
 
-  console.log(
-    "PATENTE:",
-    record.patent,
-    "FECHA REGISTRO:",
-    recordDate,
-    "FECHA FILTRO:",
-    searchDate
-  );
+    const matchDate = !searchDate || recordDate === searchDate;
 
-  const matchDate =
-    !searchDate || recordDate === searchDate;
+    const matchPatent =
+      !searchPatent ||
+      String(record.patent || "")
+        .toLowerCase()
+        .includes(searchPatent.toLowerCase());
 
-  const matchPatent =
-    !searchPatent ||
-    String(record.patent || "")
-      .toLowerCase()
-      .includes(searchPatent.toLowerCase());
-
-      console.log({
-  patente: record.patent,
-  original: record.date,
-  convertida: recordDate,
-  filtro: searchDate,
-});
-
-  return matchDate && matchPatent;
-});
-
-console.log("FILTRADOS:", filteredRecords);
+    return matchDate && matchPatent;
+  });
 
   return (
     <div className="history-page">
@@ -223,17 +202,26 @@ console.log("FILTRADOS:", filteredRecords);
           <h2>
             {isAllHistory
               ? "Historial General Check List Vehículos"
-              : "Mis Check List Vehículos"}
+              : "Check List Vehículos Terminados"}
           </h2>
 
           <p>
             {isAllHistory
               ? "Todos los registros guardados por los usuarios."
-              : "Registros guardados de tus inspecciones vehiculares."}
+              : "Registros completados con sus firmas correspondientes."}
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="history-top-actions">
+          <button
+            type="button"
+            className="history-back-button"
+            onClick={() => navigate("/check-vehiculos/pendientes-firma")}
+          >
+            <PenLine size={18} />
+            Pendientes de Firma
+          </button>
+
           {isSuperadmin && !isAllHistory && (
             <button
               type="button"
@@ -252,7 +240,7 @@ console.log("FILTRADOS:", filteredRecords);
               onClick={() => navigate("/check-vehiculos/historial")}
             >
               <User size={18} />
-              Ver Mis Check List
+              Ver Terminados
             </button>
           )}
 
@@ -267,46 +255,46 @@ console.log("FILTRADOS:", filteredRecords);
         </div>
       </div>
 
-<div className="history-filters">
-  <input
-    type="date"
-    value={searchDate}
-    onChange={(e) => setSearchDate(e.target.value)}
-    className="history-date-filter"
-  />
+      <div className="history-filters">
+        <input
+          type="date"
+          value={searchDate}
+          onChange={(e) => setSearchDate(e.target.value)}
+          className="history-date-filter"
+        />
 
-  <input
-    type="text"
-    placeholder="Buscar patente..."
-    value={searchPatent}
-    onChange={(e) => setSearchPatent(e.target.value)}
-    className="history-search-input"
-  />
+        <input
+          type="text"
+          placeholder="Buscar patente..."
+          value={searchPatent}
+          onChange={(e) => setSearchPatent(e.target.value)}
+          className="history-search-input"
+        />
 
-  <button
-    type="button"
-    className="history-clear-filter"
-    onClick={() => {
-      setSearchDate("");
-      setSearchPatent("");
-    }}
-  >
-    Limpiar filtros
-  </button>
-</div>
+        <button
+          type="button"
+          className="history-clear-filter"
+          onClick={() => {
+            setSearchDate("");
+            setSearchPatent("");
+          }}
+        >
+          Limpiar filtros
+        </button>
+      </div>
 
       <div className="history-card">
         {loading ? (
-  <p>Cargando historial...</p>
-) : filteredRecords.length === 0 ? (
+          <p>Cargando historial...</p>
+        ) : filteredRecords.length === 0 ? (
           <div className="history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
-            <p>Los check list guardados aparecerán aquí.</p>
+            <p>Los check list terminados aparecerán aquí.</p>
           </div>
         ) : (
           <div className="history-list">
-  {filteredRecords.map((record) => (
+            {filteredRecords.map((record) => (
               <div className="history-row" key={record.id}>
                 <div className="history-icon">
                   <Car size={22} />
@@ -324,6 +312,11 @@ console.log("FILTRADOS:", filteredRecords);
                     <span>
                       <User size={15} />
                       {record.driverName || "Sin conductor"}
+                    </span>
+
+                    <span>
+                      <CheckCircle2 size={15} />
+                      {statusLabel(record.status)}
                     </span>
 
                     {isAllHistory && (
@@ -354,7 +347,7 @@ console.log("FILTRADOS:", filteredRecords);
                     Vista previa PDF
                   </button>
 
-                  {(isSuperadmin || !isAllHistory) && (
+                  {isSuperadmin && (
                     <button
                       className="history-delete-button"
                       onClick={() => askDeleteRecord(record)}
@@ -400,8 +393,18 @@ console.log("FILTRADOS:", filteredRecords);
               </div>
 
               <div>
+                <span>Estado</span>
+                <strong>{statusLabel(selectedRecord.status)}</strong>
+              </div>
+
+              <div>
                 <span>Conductor</span>
                 <strong>{selectedRecord.driverName || "Sin conductor"}</strong>
+              </div>
+
+              <div>
+                <span>Inspector</span>
+                <strong>{selectedRecord.inspectorName || "—"}</strong>
               </div>
 
               <div>
@@ -425,6 +428,53 @@ console.log("FILTRADOS:", filteredRecords);
                   <strong>{selectedRecord.user?.name || "Usuario"}</strong>
                 </div>
               )}
+            </div>
+
+            <div className="detail-section">
+              <h4>Firmas</h4>
+
+              <div className="detail-grid">
+                <div>
+                  <span>Conductor</span>
+                  <strong>
+                    {selectedRecord.driverSignatureUrl ? "Firmado" : "Pendiente"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Inspector</span>
+                  <strong>
+                    {selectedRecord.inspectorSignatureUrl ? "Firmado" : "Pendiente"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Supervisor</span>
+                  <strong>
+                    {selectedRecord.supervisorSignatureUrl
+                      ? "Firmado"
+                      : "Pendiente"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Prevención</span>
+                  <strong>
+                    {selectedRecord.preventionSignatureUrl
+                      ? "Firmado"
+                      : "Pendiente"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Superadmin</span>
+                  <strong>
+                    {selectedRecord.superadminSignatureUrl
+                      ? "Firmado"
+                      : "Pendiente"}
+                  </strong>
+                </div>
+              </div>
             </div>
 
             <div className="detail-section">
@@ -499,7 +549,7 @@ console.log("FILTRADOS:", filteredRecords);
                 Vista previa PDF
               </button>
 
-              {(isSuperadmin || !isAllHistory) && (
+              {isSuperadmin && (
                 <button
                   type="button"
                   className="history-delete-button detail-delete-button"

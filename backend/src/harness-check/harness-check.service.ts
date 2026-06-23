@@ -9,10 +9,14 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class HarnessCheckService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly notificationsService: NotificationsService,
+) {}
 
   private text(value: any) {
     if (value === null || value === undefined || value === "") return "—";
@@ -30,6 +34,23 @@ export class HarnessCheckService {
     }
   }
 
+  private parseDate(value: any) {
+    if (!value) return null;
+
+    if (
+      typeof value === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ) {
+      const [year, month, day] = value.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return date;
+  }
+
   private formatDate(value: any) {
     if (!value) return "—";
 
@@ -40,9 +61,56 @@ export class HarnessCheckService {
     }
   }
 
+  private normalizeStatus(value: any) {
+    const status = String(value || "").toUpperCase();
+
+    if (status === "APROBADO") return "APROBADO";
+    if (status === "RECHAZADO") return "RECHAZADO";
+
+    return "PENDIENTE";
+  }
+
   private isSuperadmin(user: any) {
     return String(user?.role || "").toUpperCase() === "SUPERADMIN";
   }
+
+  private isReviewer(user: any) {
+  const role = String(user?.role || "").toUpperCase();
+
+  return (
+    role === "SUPERADMIN" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION"
+  );
+}
+
+private isTechnician(user: any) {
+  return String(user?.role || "").toUpperCase() === "TECNICO";
+}
+
+private async notifyPendingHarnessSignature(check: any) {
+  const reviewers = await this.prisma.user.findMany({
+    where: {
+      isActive: true,
+      role: {
+        in: ["SUPERVISOR", "PREVENCION"],
+      },
+    },
+  });
+
+  await Promise.all(
+    reviewers.map((reviewer) =>
+      this.notificationsService.create(
+        reviewer.id,
+        "Check list de arnés pendiente de firma",
+        `Tienes un check list de arnés pendiente de firma${
+          check?.folio ? ` (${check.folio})` : ""
+        }.`,
+        "/arnes/pendientes-firma",
+      ),
+    ),
+  );
+}
 
   private async getLoggedUser(user: any) {
     const userId = Number(user?.id || user?.sub || 0);
@@ -82,69 +150,85 @@ export class HarnessCheckService {
       throw new NotFoundException("Check list de arnés no encontrado");
     }
 
-    if (!this.isSuperadmin(user) && check.userId !== user.id) {
-      throw new ForbiddenException(
-        "No tienes permiso para ver este check list de arnés",
-      );
-    }
+    const isOwner = check.userId === user.id;
+const isAssignedTechnician =
+  this.isTechnician(user) &&
+  String(check.technicianName || "") === String(user.name || "");
+const isReviewerUser = this.isReviewer(user);
+
+if (!this.isSuperadmin(user) && !isOwner && !isAssignedTechnician && !isReviewerUser) {
+  throw new ForbiddenException(
+    "No tienes permiso para ver este check list de arnés",
+  );
+}
 
     return check;
   }
 
   async create(
-    currentUser: any,
-    data: any,
-    technicianSignature?: Express.Multer.File | null,
-    supervisorSignature?: Express.Multer.File | null,
-  ) {
-    const user = await this.getLoggedUser(currentUser);
-    const items = this.parseItems(data.items);
+  currentUser: any,
+  data: any,
+  technicianSignature?: Express.Multer.File | null,
+  supervisorSignature?: Express.Multer.File | null,
+) {
+  const user = await this.getLoggedUser(currentUser);
+  const items = this.parseItems(data.items);
 
-    const lastCheck = await this.prisma.harnessCheck.findFirst({
-      orderBy: {
-        id: "desc",
+  const lastCheck = await this.prisma.harnessCheck.findFirst({
+    orderBy: {
+      id: "desc",
+    },
+  });
+
+  const nextNumber = (lastCheck?.id || 0) + 1;
+
+  const generatedFolio = `ARN-${new Date().getFullYear()}-${String(
+    nextNumber,
+  ).padStart(4, "0")}`;
+
+  const created = await this.prisma.harnessCheck.create({
+    data: {
+      folio: generatedFolio,
+      date: data.date ? this.parseDate(data.date) || new Date() : new Date(),
+      expirationDate: this.parseDate(data.expirationDate),
+      contract: data.contract || null,
+      technicianName: data.technicianName || user.name || null,
+      mobile: data.mobile || null,
+      supervisorInspectorName: data.supervisorInspectorName || null,
+      zone: data.zone || null,
+
+      technicianSignatureUrl: technicianSignature
+        ? `/uploads/harness-check/${technicianSignature.filename}`
+        : null,
+
+      supervisorSignatureUrl: supervisorSignature
+        ? `/uploads/harness-check/${supervisorSignature.filename}`
+        : null,
+
+      status: this.normalizeStatus(data.status),
+      generalObservation: data.generalObservation || null,
+      userId: user.id,
+
+      items: {
+        create: items.map((item: any) => ({
+          description: item.description,
+          status: item.status || null,
+          observation: item.observation || null,
+        })),
       },
-    });
+    },
+    include: {
+      items: true,
+      user: true,
+    },
+  });
 
-    const nextNumber = (lastCheck?.id || 0) + 1;
-
-    const generatedFolio = `ARN-${new Date().getFullYear()}-${String(
-      nextNumber,
-    ).padStart(4, "0")}`;
-
-    return this.prisma.harnessCheck.create({
-      data: {
-        folio: generatedFolio,
-        date: data.date ? new Date(data.date) : new Date(),
-        contract: data.contract || null,
-        technicianName: data.technicianName || user.name || null,
-        mobile: data.mobile || null,
-        supervisorInspectorName: data.supervisorInspectorName || null,
-        zone: data.zone || null,
-        technicianSignatureUrl: technicianSignature
-          ? `/uploads/harness-check/${technicianSignature.filename}`
-          : null,
-        supervisorSignatureUrl: supervisorSignature
-          ? `/uploads/harness-check/${supervisorSignature.filename}`
-          : null,
-        status: data.status || "PENDIENTE",
-        generalObservation: data.generalObservation || null,
-        userId: user.id,
-
-        items: {
-          create: items.map((item: any) => ({
-            description: item.description,
-            status: item.status || null,
-            observation: item.observation || null,
-          })),
-        },
-      },
-      include: {
-        items: true,
-        user: true,
-      },
-    });
+  if (!created.supervisorSignatureUrl) {
+    await this.notifyPendingHarnessSignature(created);
   }
+
+  return created;
+}
 
   async findMine(currentUser: any) {
     const user = await this.getLoggedUser(currentUser);
@@ -183,6 +267,41 @@ export class HarnessCheckService {
     });
   }
 
+  async finished(currentUser: any) {
+  const user = await this.getLoggedUser(currentUser);
+
+  if (this.isTechnician(user)) {
+    return this.prisma.harnessCheck.findMany({
+      where: {
+        technicianName: user.name,
+      },
+      include: {
+        items: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  if (!this.isReviewer(user)) {
+    throw new ForbiddenException(
+      "No tienes permiso para ver check list de arnés terminados",
+    );
+  }
+
+  return this.prisma.harnessCheck.findMany({
+    include: {
+      items: true,
+      user: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
   async findOne(currentUser: any, id: number) {
     return this.canAccessHarnessCheck(currentUser, id);
   }
@@ -208,6 +327,118 @@ export class HarnessCheckService {
       where: { id },
     });
   }
+
+  async pendingSignatures(currentUser: any) {
+  const user = await this.getLoggedUser(currentUser);
+
+  if (this.isTechnician(user)) {
+    return this.prisma.harnessCheck.findMany({
+      where: {
+        technicianSignatureUrl: null,
+        technicianName: user.name,
+      },
+      include: {
+        items: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  if (!this.isReviewer(user)) {
+    throw new ForbiddenException(
+      "No tienes permiso para ver firmas pendientes",
+    );
+  }
+
+  return this.prisma.harnessCheck.findMany({
+    where: {
+      supervisorSignatureUrl: null,
+    },
+    include: {
+      items: true,
+      user: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
+async signSupervisor(
+  currentUser: any,
+  id: number,
+  signature?: Express.Multer.File | null,
+) {
+  const user = await this.getLoggedUser(currentUser);
+
+  if (!signature) {
+    throw new ForbiddenException("Debes adjuntar una firma");
+  }
+
+  const check = await this.prisma.harnessCheck.findUnique({
+    where: { id },
+    include: {
+      items: true,
+      user: true,
+    },
+  });
+
+  if (!check) {
+    throw new NotFoundException("Check list de arnés no encontrado");
+  }
+
+  if (this.isTechnician(user)) {
+    if (String(check.technicianName || "") !== String(user.name || "")) {
+      throw new ForbiddenException(
+        "Este check list no está asignado a este técnico",
+      );
+    }
+
+    if (check.technicianSignatureUrl) {
+      throw new ForbiddenException(
+        "Este check list ya fue firmado por el técnico",
+      );
+    }
+
+    return this.prisma.harnessCheck.update({
+      where: { id },
+      data: {
+        technicianSignatureUrl: `/uploads/harness-check/${signature.filename}`,
+      },
+      include: {
+        items: true,
+        user: true,
+      },
+    });
+  }
+
+  if (!this.isReviewer(user)) {
+    throw new ForbiddenException(
+      "No tienes permiso para firmar este check list",
+    );
+  }
+
+  if (check.supervisorSignatureUrl) {
+    throw new ForbiddenException(
+      "Este check list ya fue firmado por supervisor",
+    );
+  }
+
+  return this.prisma.harnessCheck.update({
+    where: { id },
+    data: {
+      supervisorSignatureUrl: `/uploads/harness-check/${signature.filename}`,
+      supervisorInspectorName: check.supervisorInspectorName || user.name,
+    },
+    include: {
+      items: true,
+      user: true,
+    },
+  });
+}
 
   async generatePdf(currentUser: any, id: number, res: Response) {
     const check = await this.findOne(currentUser, id);
@@ -244,9 +475,20 @@ export class HarnessCheckService {
     const logoCandidates = [
       path.join(process.cwd(), "uploads", "branding", "logo-insprotel.png"),
       path.join(process.cwd(), "uploads", "logo-insprotel.png"),
+      path.join(process.cwd(), "uploads", "branding", "insprotel.png"),
     ];
 
     const logoPath = logoCandidates.find((item) => fs.existsSync(item));
+
+    const isoLogoCandidates = [
+      path.join(process.cwd(), "uploads", "branding", "sgs.png"),
+      path.join(process.cwd(), "uploads", "branding", "iso.png"),
+      path.join(process.cwd(), "uploads", "sgs.png"),
+    ];
+
+    const isoLogoPath = isoLogoCandidates.find((item) =>
+      fs.existsSync(item),
+    );
 
     const getPathFromUrl = (url: any) => {
       const relativePath = String(url || "").replace(/^\/+/, "");
@@ -270,10 +512,10 @@ export class HarnessCheckService {
       doc
         .fillColor(black)
         .font(options.bold ? "Helvetica-Bold" : "Helvetica")
-        .fontSize(options.fontSize || 7)
-        .text(text, x + 4, y + 5, {
-          width: w - 8,
-          height: h - 6,
+        .fontSize(options.fontSize || 6.5)
+        .text(text, x + 3, y + 4, {
+          width: w - 6,
+          height: h - 4,
           align: options.align || "left",
         });
     };
@@ -311,58 +553,92 @@ export class HarnessCheckService {
     };
 
     const headerY = 18;
-    const headerH = 52;
-    const logoW = 165;
-    const titleW = contentWidth - logoW;
+    const headerH = 48;
+
+    const logoW = 170;
+    const isoW = 130;
+    const titleW = contentWidth - logoW - isoW;
 
     drawCell(margin, headerY, logoW, headerH, "");
 
     if (logoPath) {
       try {
-        doc.image(logoPath, margin + 12, headerY + 8, {
-          width: 140,
-          height: 36,
+        doc.image(logoPath, margin + 12, headerY + 7, {
+          width: 145,
+          height: 34,
+          fit: [145, 34],
+          align: "center",
+          valign: "center",
         });
       } catch {
         doc
           .font("Helvetica-Bold")
           .fontSize(14)
           .fillColor(black)
-          .text("INSPROTEL", margin + 18, headerY + 20);
+          .text("INSPROTEL", margin + 18, headerY + 18);
       }
+    } else {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(14)
+        .fillColor(black)
+        .text("INSPROTEL", margin + 18, headerY + 18);
     }
 
     drawCell(margin + logoW, headerY, titleW, headerH, "");
 
     doc
       .font("Helvetica-Bold")
-      .fontSize(17)
+      .fontSize(15)
       .fillColor(black)
-      .text("CHECK LIST ARNÉS DE SEGURIDAD", margin + logoW, headerY + 17, {
+      .text("CHECK LIST ARNÉS DE SEGURIDAD", margin + logoW, headerY + 16, {
         width: titleW,
         align: "center",
       });
 
+    drawCell(margin + logoW + titleW, headerY, isoW, headerH, "");
+
+    if (isoLogoPath) {
+      try {
+        doc.image(isoLogoPath, margin + logoW + titleW + 8, headerY + 5, {
+          width: isoW - 16,
+          height: headerH - 10,
+          fit: [isoW - 16, headerH - 10],
+          align: "center",
+          valign: "center",
+        });
+      } catch {
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(7)
+          .fillColor(black)
+          .text("ISO", margin + logoW + titleW, headerY + 18, {
+            width: isoW,
+            align: "center",
+          });
+      }
+    }
+
     let y = headerY + headerH + 10;
 
-    drawCell(margin, y, contentWidth, 18, "DATOS GENERALES", {
+    drawCell(margin, y, contentWidth, 16, "DATOS GENERALES", {
       bold: true,
       fill: gray,
       align: "center",
       fontSize: 8,
     });
 
-    y += 18;
+    y += 16;
 
     const leftW = contentWidth / 2;
 
-    drawCell(margin, y, 95, 18, "Contrato", {
+    drawCell(margin, y, 95, 16, "Contrato", {
       fill: gray,
       bold: true,
     });
-    drawCell(margin + 95, y, leftW - 95, 18, this.text(check.contract));
+    drawCell(margin + 95, y, leftW - 95, 16, this.text(check.contract));
 
-    drawCell(margin + leftW, y, 95, 18, "Fecha", {
+    drawCell(margin + leftW, y, 95, 16, "Fecha", {
       fill: gray,
       bold: true,
     });
@@ -370,13 +646,13 @@ export class HarnessCheckService {
       margin + leftW + 95,
       y,
       leftW - 95,
-      18,
+      16,
       this.formatDate(check.date),
     );
 
-    y += 18;
+    y += 16;
 
-    drawCell(margin, y, 95, 18, "Técnico", {
+    drawCell(margin, y, 95, 16, "Vencimiento", {
       fill: gray,
       bold: true,
     });
@@ -384,19 +660,45 @@ export class HarnessCheckService {
       margin + 95,
       y,
       leftW - 95,
-      18,
+      16,
+      this.formatDate((check as any).expirationDate),
+    );
+
+    drawCell(margin + leftW, y, 95, 16, "Estado", {
+      fill: gray,
+      bold: true,
+    });
+    drawCell(
+      margin + leftW + 95,
+      y,
+      leftW - 95,
+      16,
+      this.text(check.status),
+    );
+
+    y += 16;
+
+    drawCell(margin, y, 95, 16, "Técnico", {
+      fill: gray,
+      bold: true,
+    });
+    drawCell(
+      margin + 95,
+      y,
+      leftW - 95,
+      16,
       this.text(check.technicianName),
     );
 
-    drawCell(margin + leftW, y, 95, 18, "Móvil", {
+    drawCell(margin + leftW, y, 95, 16, "Móvil", {
       fill: gray,
       bold: true,
     });
-    drawCell(margin + leftW + 95, y, leftW - 95, 18, this.text(check.mobile));
+    drawCell(margin + leftW + 95, y, leftW - 95, 16, this.text(check.mobile));
 
-    y += 18;
+    y += 16;
 
-    drawCell(margin, y, 95, 18, "Supervisor", {
+    drawCell(margin, y, 95, 16, "Supervisor", {
       fill: gray,
       bold: true,
     });
@@ -404,58 +706,132 @@ export class HarnessCheckService {
       margin + 95,
       y,
       leftW - 95,
-      18,
+      16,
       this.text(check.supervisorInspectorName),
     );
 
-    drawCell(margin + leftW, y, 95, 18, "Zona", {
+    drawCell(margin + leftW, y, 95, 16, "Zona", {
       fill: gray,
       bold: true,
     });
-    drawCell(margin + leftW + 95, y, leftW - 95, 18, this.text(check.zone));
+    drawCell(margin + leftW + 95, y, leftW - 95, 16, this.text(check.zone));
 
-    y += 28;
+    y += 24;
 
-    drawCell(margin, y, contentWidth, 18, "INSPECCIÓN DEL ARNÉS", {
+    drawCell(margin, y, contentWidth, 16, "RESULTADO DE INSPECCIÓN", {
       bold: true,
       fill: gray,
       align: "center",
       fontSize: 8,
     });
 
-    y += 18;
+    y += 16;
+
+    const resultColW = contentWidth / 3;
+
+    drawCell(margin, y, resultColW, 16, "VENCIMIENTO", {
+      bold: true,
+      fill: gray,
+      align: "center",
+    });
+
+    drawCell(margin + resultColW, y, resultColW, 16, "APROBADO", {
+      bold: true,
+      fill: gray,
+      align: "center",
+    });
+
+    drawCell(margin + resultColW * 2, y, resultColW, 16, "RECHAZADO", {
+      bold: true,
+      fill: gray,
+      align: "center",
+    });
+
+    y += 16;
+
+    drawCell(
+      margin,
+      y,
+      resultColW,
+      16,
+      this.formatDate((check as any).expirationDate),
+      {
+        align: "center",
+      },
+    );
+
+    drawCell(
+      margin + resultColW,
+      y,
+      resultColW,
+      16,
+      check.status === "APROBADO" ? "X" : "",
+      {
+        align: "center",
+        bold: true,
+        fontSize: 10,
+      },
+    );
+
+    drawCell(
+      margin + resultColW * 2,
+      y,
+      resultColW,
+      16,
+      check.status === "RECHAZADO" ? "X" : "",
+      {
+        align: "center",
+        bold: true,
+        fontSize: 10,
+      },
+    );
+
+    y += 22;
+
+    drawCell(margin, y, contentWidth, 16, "INSPECCIÓN DEL ARNÉS", {
+      bold: true,
+      fill: gray,
+      align: "center",
+      fontSize: 8,
+    });
+
+    y += 16;
 
     const colN = 28;
     const colDescription = contentWidth - colN - 36 * 3 - 145;
     const colSmall = 36;
     const colObs = 145;
-    const rowH = 24;
+    const rowH = 17;
 
-    drawCell(margin, y, colN, 18, "N°", {
+    drawCell(margin, y, colN, 16, "N°", {
       bold: true,
       fill: gray,
       align: "center",
     });
-    drawCell(margin + colN, y, colDescription, 18, "Ítem de revisión", {
+
+    drawCell(margin + colN, y, colDescription, 16, "DESCRIPCIÓN", {
       bold: true,
       fill: gray,
       align: "center",
     });
-    drawCell(margin + colN + colDescription, y, colSmall, 18, "SI", {
+
+    drawCell(margin + colN + colDescription, y, colSmall, 16, "SI", {
       bold: true,
       fill: gray,
       align: "center",
     });
-    drawCell(margin + colN + colDescription + colSmall, y, colSmall, 18, "NO", {
+
+    drawCell(margin + colN + colDescription + colSmall, y, colSmall, 16, "NO", {
       bold: true,
       fill: gray,
       align: "center",
     });
+
     drawCell(
       margin + colN + colDescription + colSmall * 2,
       y,
       colSmall,
-      18,
+      16,
       "N/A",
       {
         bold: true,
@@ -463,11 +839,12 @@ export class HarnessCheckService {
         align: "center",
       },
     );
+
     drawCell(
       margin + colN + colDescription + colSmall * 3,
       y,
       colObs,
-      18,
+      16,
       "Observación",
       {
         bold: true,
@@ -476,12 +853,12 @@ export class HarnessCheckService {
       },
     );
 
-    y += 18;
+    y += 16;
 
     const items = check.items || [];
 
     items.forEach((item: any, index: number) => {
-      if (y + rowH > bottomLimit - 140) {
+      if (y + rowH > bottomLimit - 105) {
         doc.addPage();
         y = 28;
       }
@@ -490,9 +867,16 @@ export class HarnessCheckService {
         align: "center",
       });
 
-      drawCell(margin + colN, y, colDescription, rowH, this.text(item.description), {
-        fontSize: 6.8,
-      });
+      drawCell(
+        margin + colN,
+        y,
+        colDescription,
+        rowH,
+        this.text(item.description),
+        {
+          fontSize: 5.8,
+        },
+      );
 
       drawCell(
         margin + colN + colDescription,
@@ -540,7 +924,7 @@ export class HarnessCheckService {
         rowH,
         this.text(item.observation || ""),
         {
-          fontSize: 6,
+          fontSize: 5.5,
         },
       );
 
@@ -549,79 +933,73 @@ export class HarnessCheckService {
 
     y += 14;
 
-    if (y + 170 > bottomLimit) {
+    if (y + 150 > bottomLimit) {
       doc.addPage();
       y = 28;
     }
 
-    drawCell(margin, y, contentWidth, 18, "OBSERVACIONES GENERALES", {
+    drawCell(margin, y, contentWidth, 16, "OBSERVACIONES GENERALES", {
       bold: true,
       fill: gray,
       align: "center",
       fontSize: 8,
     });
 
-    y += 18;
+    y += 16;
 
-    drawCell(margin, y, contentWidth, 60, this.text(check.generalObservation), {
-      fontSize: 8,
+    drawCell(margin, y, contentWidth, 42, this.text(check.generalObservation), {
+      fontSize: 7,
     });
 
-    y += 74;
+    y += 75;
 
     const signGap = 12;
     const signW = (contentWidth - signGap) / 2;
-    const signH = 72;
+    const signH = 58;
 
-    drawCell(margin, y, signW, 18, "Firma Técnico", {
+    drawCell(margin, y, signW, 16, "Firma Técnico", {
       bold: true,
       fill: gray,
       align: "center",
     });
 
-    doc.rect(margin, y + 18, signW, signH).stroke(black);
+    doc.rect(margin, y + 16, signW, signH).stroke(black);
 
-    drawSignature(
-      margin,
-      y + 22,
-      signW,
-      36,
-      check.technicianSignatureUrl,
-    );
+    drawSignature(margin, y + 20, signW, 30, check.technicianSignatureUrl);
 
     doc
       .font("Helvetica")
-      .fontSize(9)
+      .fontSize(8)
       .fillColor(black)
-      .text(this.text(check.technicianName), margin, y + 62, {
+      .text(this.text(check.technicianName), margin, y + 50, {
         width: signW,
         align: "center",
       });
 
-    drawCell(margin + signW + signGap, y, signW, 18, "Firma Supervisor", {
+    drawCell(margin + signW + signGap, y, signW, 16, "Firma Supervisor", {
       bold: true,
       fill: gray,
       align: "center",
     });
 
-    doc.rect(margin + signW + signGap, y + 18, signW, signH).stroke(black);
+    doc.rect(margin + signW + signGap, y + 16, signW, signH).stroke(black);
 
     drawSignature(
       margin + signW + signGap,
-      y + 22,
+      y + 20,
       signW,
-      36,
+      30,
       check.supervisorSignatureUrl,
     );
 
     doc
       .font("Helvetica")
-      .fontSize(9)
+      .fontSize(8)
       .fillColor(black)
       .text(
         this.text(check.supervisorInspectorName),
         margin + signW + signGap,
-        y + 62,
+        y + 50,
         {
           width: signW,
           align: "center",

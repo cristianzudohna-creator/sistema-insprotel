@@ -173,8 +173,10 @@ const INITIAL_FORM = {
   maintenanceUpToDate: "",
   vehicleType: "",
   vehicleModel: "",
+  padron: "",
   driverName: "",
   supervisorName: "",
+  supervisorUserId: "",
   status: "PENDIENTE",
 
   technicalReview: "",
@@ -244,6 +246,7 @@ function VehicleCheckList() {
 
   const [loading, setLoading] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [signatureEnabled, setSignatureEnabled] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const [form, setForm] = useState({
@@ -258,6 +261,25 @@ function VehicleCheckList() {
   const [vehicleOptions, setVehicleOptions] = useState([]);
   const [showVehicleOptions, setShowVehicleOptions] = useState(false);
   const [searchingVehicles, setSearchingVehicles] = useState(false);
+  const [supervisorOptions, setSupervisorOptions] = useState([]);
+const [showSupervisorOptions, setShowSupervisorOptions] = useState(false);
+
+const loggedUser = getLoggedUser();
+const loggedRole = String(loggedUser?.role || "").toUpperCase();
+
+const reviewerFieldLabel =
+  loggedRole === "CONDUCTOR"
+    ? "Nombre Supervisor o Prevención"
+    : loggedRole === "SUPERVISOR" || loggedRole === "PREVENCION"
+    ? "Nombre Conductor"
+    : "Nombre Usuario";
+
+const reviewerFieldPlaceholder =
+  loggedRole === "CONDUCTOR"
+    ? "Escriba nombre supervisor o prevención..."
+    : loggedRole === "SUPERVISOR" || loggedRole === "PREVENCION"
+    ? "Escriba nombre conductor..."
+    : "Escriba nombre usuario...";
 
   const automaticStatus = useMemo(() => {
     return getAutomaticStatus(checks);
@@ -310,6 +332,46 @@ function VehicleCheckList() {
 
     return () => clearTimeout(timeout);
   }, [form.patent]);
+
+  useEffect(() => {
+  async function loadUsers() {
+    try {
+      const response = await fetch(`${API_URL}/users/workers`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      const data = await response.json();
+
+      let filtered = [];
+
+      if (loggedRole === "CONDUCTOR") {
+        filtered = (Array.isArray(data) ? data : []).filter((user) =>
+          ["SUPERVISOR", "PREVENCION"].includes(
+            String(user.role || "").toUpperCase(),
+          ),
+        );
+      } else if (
+        loggedRole === "SUPERVISOR" ||
+        loggedRole === "PREVENCION"
+      ) {
+        filtered = (Array.isArray(data) ? data : []).filter(
+          (user) =>
+            String(user.role || "").toUpperCase() === "CONDUCTOR",
+        );
+      } else if (loggedRole === "SUPERADMIN") {
+        filtered = Array.isArray(data) ? data : [];
+      }
+
+      setSupervisorOptions(filtered);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  loadUsers();
+}, [loggedRole]);
 
   function prepareCanvas() {
     const canvas = canvasRef.current;
@@ -405,6 +467,7 @@ function VehicleCheckList() {
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     setHasSignature(false);
+setSignatureEnabled(true);
   }
 
   function resetForm() {
@@ -418,6 +481,7 @@ function VehicleCheckList() {
       date: todayInputDate(),
       driverName: getLoggedUserName(),
       supervisorName: "",
+      supervisorUserId: "",
       status: "PENDIENTE",
     });
 
@@ -524,9 +588,11 @@ function VehicleCheckList() {
       formData.append("maintenanceUpToDate", form.maintenanceUpToDate);
       formData.append("vehicleType", form.vehicleType);
       formData.append("vehicleModel", form.vehicleModel);
+      formData.append("padron", form.padron);
 
       formData.append("driverName", form.driverName || loggedUserName);
       formData.append("supervisorName", form.supervisorName);
+      formData.append("supervisorUserId", String(form.supervisorUserId || ""));
       formData.append("status", automaticStatus);
 
       formData.append("technicalReview", form.technicalReview);
@@ -579,9 +645,6 @@ function VehicleCheckList() {
 
       setSuccessModalOpen(true);
 
-      setTimeout(() => {
-        closeSuccessModal();
-      }, 1700);
     } catch (error) {
       console.error(error);
       alert("Error guardando checklist ❌");
@@ -689,6 +752,16 @@ function VehicleCheckList() {
           </label>
 
           <label>
+  Padrón
+  <input
+    type="text"
+    value={form.padron}
+    onChange={(e) => handleInput("padron", e.target.value)}
+    placeholder="Ingrese número de padrón"
+  />
+</label>
+
+          <label>
             Mantención al día
             <select
               value={form.maintenanceUpToDate}
@@ -731,6 +804,7 @@ function VehicleCheckList() {
                 <option value="">Estado</option>
                 <option value="VIGENTE">Vigente</option>
                 <option value="VENCIDA">Vencida</option>
+                <option value="NO_APLICA">No aplica</option>
               </select>
             </div>
           </label>
@@ -753,6 +827,7 @@ function VehicleCheckList() {
                 <option value="">Estado</option>
                 <option value="VIGENTE">Vigente</option>
                 <option value="VENCIDA">Vencida</option>
+                <option value="NO_APLICA">No aplica</option>
               </select>
             </div>
           </label>
@@ -777,6 +852,7 @@ function VehicleCheckList() {
                 <option value="">Estado</option>
                 <option value="VIGENTE">Vigente</option>
                 <option value="VENCIDA">Vencida</option>
+                 <option value="NO_APLICA">No aplica</option>
               </select>
             </div>
           </label>
@@ -801,6 +877,7 @@ function VehicleCheckList() {
                 <option value="">Estado</option>
                 <option value="VIGENTE">Vigente</option>
                 <option value="VENCIDA">Vencida</option>
+                 <option value="NO_APLICA">No aplica</option>
               </select>
             </div>
           </label>
@@ -823,6 +900,7 @@ function VehicleCheckList() {
                 <option value="">Estado</option>
                 <option value="VIGENTE">Vigente</option>
                 <option value="VENCIDA">Vencida</option>
+                 <option value="NO_APLICA">No aplica</option>
               </select>
             </div>
           </label>
@@ -952,52 +1030,150 @@ function VehicleCheckList() {
         )}
 
         <div className="vehicle-form-grid signature-fields">
-          <label>
-            Nombre Supervisor
-            <input
-              type="text"
-              value={form.supervisorName}
-              onChange={(e) => handleInput("supervisorName", e.target.value)}
-              placeholder="Ingrese nombre del supervisor"
-            />
-          </label>
-        </div>
+  <label className="vehicle-autocomplete">
+    {reviewerFieldLabel}
 
-        <div className="signature-section">
-          <div className="signature-title">
-            <PenLine size={18} />
-            Firma del {signatureRoleLabel}
-          </div>
+    <input
+      type="text"
+      value={form.supervisorName}
+      onChange={(e) => {
+        handleInput("supervisorName", e.target.value);
+        setShowSupervisorOptions(true);
+      }}
+      onFocus={() => setShowSupervisorOptions(true)}
+      placeholder={reviewerFieldPlaceholder}
+      autoComplete="off"
+    />
 
-          <div className="signature-box">
-            <canvas
-              ref={canvasRef}
-              className="signature-canvas"
-              onMouseDown={startSignature}
-              onMouseMove={drawSignature}
-              onMouseUp={stopSignature}
-              onMouseLeave={stopSignature}
-              onTouchStart={startSignature}
-              onTouchMove={drawSignature}
-              onTouchEnd={stopSignature}
-            />
+    {showSupervisorOptions && (
+      <div className="vehicle-options">
+        {supervisorOptions
+          .filter((user) =>
+            user.name
+              ?.toLowerCase()
+              .includes(form.supervisorName.toLowerCase()),
+          )
+          .slice(0, 10)
+          .map((user) => (
+            <button
+              key={user.id}
+              type="button"
+              className="vehicle-option"
+              onMouseDown={() => {
+  handleInput("supervisorName", user.name);
+  handleInput("supervisorUserId", user.id);
+  setShowSupervisorOptions(false);
+}}
+            >
+              <strong>{user.name}</strong>
 
-            <div className="signature-actions">
-              <button
-                type="button"
-                className="signature-clear-button"
-                onClick={clearSignature}
-              >
-                <RotateCcw size={16} />
-                Limpiar firma
-              </button>
-            </div>
+              <span>
+  {String(user.role || "").toUpperCase() === "SUPERVISOR"
+    ? "Supervisor"
+    : String(user.role || "").toUpperCase() === "PREVENCION"
+    ? "Prevención"
+    : String(user.role || "").toUpperCase() === "CONDUCTOR"
+    ? "Conductor"
+    : String(user.role || "").toUpperCase() === "ADMIN"
+    ? "Admin"
+    : String(user.role || "").toUpperCase() === "TECNICO"
+    ? "Técnico"
+    : String(user.role || "").toUpperCase() === "SUPERADMIN"
+    ? "Superadmin"
+    : "Usuario"}
+</span>
+            </button>
+          ))}
+      </div>
+    )}
+  </label>
+</div>
 
-            {hasSignature && (
-              <div className="signature-status">Firma registrada ✅</div>
-            )}
-          </div>
-        </div>
+        <div className="signature-separator" />
+
+        <div className={`vehicle-client-signature ${hasSignature ? "signed" : ""}`}>
+  <div className="vehicle-client-signature-header">
+    <div>
+      <div className="vehicle-client-signature-title">
+        <PenLine size={22} />
+        Firma del Responsable
+      </div>
+
+      <h4>
+  Firma de {loggedUserName}
+
+  <span>
+    {" "}
+    ({signatureRoleLabel})
+  </span>
+</h4>
+
+      <p>
+  {signatureEnabled
+    ? "🔓 Firma habilitada"
+    : "🔒 Firma bloqueada (habilita antes de firmar)"}
+</p>
+    </div>
+
+    <div className="vehicle-client-signature-actions">
+      <button
+  type="button"
+  className="vehicle-enable-signature-button"
+  onClick={() => {
+    setSignatureEnabled((prev) => !prev);
+  }}
+>
+  <PenLine size={18} />
+  {signatureEnabled ? "Bloquear firma" : "Habilitar firma"}
+</button>
+
+      <button
+        type="button"
+        className="vehicle-clear-signature-button"
+        onClick={clearSignature}
+        disabled={!hasSignature}
+      >
+        Limpiar
+      </button>
+    </div>
+  </div>
+
+  <div className="vehicle-signature-pad">
+    {!signatureEnabled && (
+      <div className="vehicle-signature-placeholder">
+        <div>🔒</div>
+        <strong>Firma deshabilitada</strong>
+        <span>Toca aquí para habilitar y que el cliente firme</span>
+      </div>
+    )}
+
+    <canvas
+  ref={canvasRef}
+  className="signature-canvas"
+  onMouseDown={signatureEnabled ? startSignature : undefined}
+  onMouseMove={signatureEnabled ? drawSignature : undefined}
+  onMouseUp={signatureEnabled ? stopSignature : undefined}
+  onMouseLeave={signatureEnabled ? stopSignature : undefined}
+  onTouchStart={signatureEnabled ? startSignature : undefined}
+  onTouchMove={signatureEnabled ? drawSignature : undefined}
+  onTouchEnd={signatureEnabled ? stopSignature : undefined}
+/>
+  </div>
+
+  <p className="vehicle-signature-help">
+    Habilita la firma, pide al cliente que firme dentro del recuadro. Luego
+    presiona guardar.
+  </p>
+
+  <div className="vehicle-signature-status">
+    Estado firma:{" "}
+    {hasSignature ? (
+      <span className="ok">✅ Firma registrada</span>
+    ) : (
+      <span className="bad">❌ Falta firma</span>
+    )}
+  </div>
+</div>
       </section>
 
       <div className="vehicle-form-footer">
@@ -1013,18 +1189,31 @@ function VehicleCheckList() {
       </div>
 
       {successModalOpen && (
-        <div className="delete-modal-overlay">
-          <div className="delete-modal success-clean-modal">
-            <div className="success-modal-icon">
-              <Check size={34} />
-            </div>
+  <div className="delete-modal-overlay">
+    <div className="delete-modal">
+      <div className="success-modal-icon">
+        <Check size={38} />
+      </div>
 
-            <h3>Checklist guardado</h3>
+      <h3>Checklist guardado</h3>
 
-            <p>El check list del vehículo fue creado correctamente.</p>
-          </div>
-        </div>
-      )}
+      <p>
+        El check list del vehículo fue creado correctamente.
+      </p>
+
+      <div className="success-modal-actions">
+        <button
+  type="button"
+  className="success-confirm-button"
+  onClick={closeSuccessModal}
+>
+  <Check size={18} />
+  Aceptar
+</button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

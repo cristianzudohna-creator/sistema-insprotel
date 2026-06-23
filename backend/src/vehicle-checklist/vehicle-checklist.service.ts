@@ -9,14 +9,27 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class VehicleChecklistService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private toDate(value: any) {
     if (!value) return null;
-    return new Date(value);
+
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return date;
   }
 
   private parseItems(value: any) {
@@ -45,6 +58,33 @@ export class VehicleChecklistService {
     return String(value);
   }
 
+  private role(user: any) {
+    return String(user?.role || "").toUpperCase();
+  }
+
+  private isSuperadmin(user: any) {
+    return this.role(user) === "SUPERADMIN";
+  }
+
+  private isDriver(user: any) {
+    return this.role(user) === "CONDUCTOR";
+  }
+
+  private isReviewer(user: any) {
+    const role = this.role(user);
+    return role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
+  }
+
+  private canCreate(user: any) {
+    return this.isDriver(user) || this.isReviewer(user);
+  }
+
+  private ensureTecnicoOut(user: any) {
+    if (this.role(user) === "TECNICO") {
+      throw new ForbiddenException("TÉCNICO no participa en Check List Vehículos");
+    }
+  }
+
   private formatMaintenance(value: any) {
     const normalized = String(value || "").trim().toUpperCase();
 
@@ -65,11 +105,15 @@ export class VehicleChecklistService {
     if (normalized === "VIGENTE") return "VIGENTE";
     if (normalized === "VENCIDA" || normalized === "VENCIDO") return "VENCIDA";
 
-    return null;
-  }
+    if (
+      normalized === "NO_APLICA" ||
+      normalized === "NO APLICA" ||
+      normalized === "N/A"
+    ) {
+      return "NO_APLICA";
+    }
 
-  private isSuperadmin(user: any) {
-    return String(user?.role || "").toUpperCase() === "SUPERADMIN";
+    return null;
   }
 
   private async getLoggedUser(user: any) {
@@ -95,27 +139,150 @@ export class VehicleChecklistService {
     throw new ForbiddenException("Usuario no válido");
   }
 
-  private async canAccessChecklist(id: number, user: any) {
-    const loggedUser = await this.getLoggedUser(user);
+  private async findDriverByData(data: any, fallbackUser: any) {
+    const driverUserId = Number(data.driverUserId || data.conductorId || 0);
+
+    if (driverUserId) {
+      const found = await this.prisma.user.findUnique({
+        where: { id: driverUserId },
+      });
+
+      if (found && found.role === "CONDUCTOR" && found.isActive) {
+        return found;
+      }
+    }
+
+    const driverName = String(data.driverName || "").trim();
+
+    if (driverName) {
+      const found = await this.prisma.user.findFirst({
+        where: {
+          role: "CONDUCTOR",
+          isActive: true,
+          name: {
+            equals: driverName,
+            mode: "insensitive",
+          },
+        },
+      });
+
+      if (found) return found;
+    }
+
+    if (this.isDriver(fallbackUser)) return fallbackUser;
+
+    return null;
+  }
+
+  private checklistInclude() {
+    return {
+      items: true,
+      photos: true,
+      user: true,
+    };
+  }
+
+  private async canAccessChecklist(id: number, currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+    this.ensureTecnicoOut(user);
 
     const checklist = await this.prisma.vehicleCheckList.findUnique({
       where: { id },
-      include: {
-        items: true,
-        photos: true,
-        user: true,
-      },
+      include: this.checklistInclude(),
     });
 
     if (!checklist) {
       throw new NotFoundException("Check list no encontrado");
     }
 
-    if (!this.isSuperadmin(loggedUser) && checklist.userId !== loggedUser.id) {
+    const isOwner = checklist.userId === user.id;
+    const isAssignedDriver = checklist.driverUserId === user.id;
+
+    if (!this.isReviewer(user) && !isOwner && !isAssignedDriver) {
       throw new ForbiddenException("No tienes permiso para ver este check list");
     }
 
     return checklist;
+  }
+
+  private isCompleted(check: any) {
+  const hasDriverSignature = !!check.driverSignatureUrl;
+
+  const hasInspectorSignature =
+    !!check.inspectorSignatureUrl ||
+    !!check.supervisorSignatureUrl ||
+    !!check.preventionSignatureUrl ||
+    !!check.superadminSignatureUrl;
+
+  return hasDriverSignature && hasInspectorSignature;
+}
+
+  private async updateStatusIfCompleted(id: number) {
+    const check = await this.prisma.vehicleCheckList.findUnique({
+      where: { id },
+    });
+
+    if (!check) return null;
+
+    if (!this.isCompleted(check)) {
+      return this.prisma.vehicleCheckList.update({
+        where: { id },
+        data: {
+          status: "PENDIENTE_FIRMAS",
+          completedAt: null,
+        },
+        include: this.checklistInclude(),
+      });
+    }
+
+    return this.prisma.vehicleCheckList.update({
+      where: { id },
+      data: {
+        status: "COMPLETADO",
+        completedAt: check.completedAt || new Date(),
+      },
+      include: this.checklistInclude(),
+    });
+  }
+
+  private async notifySelectedReviewer(check: any) {
+    const selectedReviewerId = Number(check?.supervisorUserId || 0);
+
+    if (!selectedReviewerId) return;
+
+    const reviewer = await this.prisma.user.findFirst({
+      where: {
+        id: selectedReviewerId,
+        isActive: true,
+        role: {
+          in: ["SUPERVISOR", "PREVENCION"],
+        },
+      },
+    });
+
+    if (!reviewer) return;
+
+    await this.notificationsService.create(
+      reviewer.id,
+      "Check list vehículo pendiente de firma",
+      `Tienes un check list de vehículo pendiente de firma${
+        check?.folio ? ` (${check.folio})` : ""
+      }.`,
+      "/vehicle-checklist/pending-signatures",
+    );
+  }
+
+  private async notifyDriver(check: any) {
+    if (!check.driverUserId) return;
+
+    await this.notificationsService.create(
+      check.driverUserId,
+      "Check list vehículo pendiente de firma",
+      `Tienes un check list de vehículo pendiente de firma${
+        check?.folio ? ` (${check.folio})` : ""
+      }.`,
+      "/vehicle-checklist/pending-signatures",
+    );
   }
 
   async searchVehicles(query: string) {
@@ -142,10 +309,22 @@ export class VehicleChecklistService {
     data: any,
     files: Express.Multer.File[] = [],
     driverSignature?: Express.Multer.File | null,
+    inspectorSignature?: Express.Multer.File | null,
     currentUser?: any,
   ) {
     const user = await this.getLoggedUser(currentUser);
+    this.ensureTecnicoOut(user);
+
+    if (!this.canCreate(user)) {
+      throw new ForbiddenException("No tienes permiso para crear check list vehículos");
+    }
+
     const items = this.parseItems(data.items);
+    const driver = await this.findDriverByData(data, user);
+
+    if (!driver) {
+      throw new ForbiddenException("Debes seleccionar un conductor válido");
+    }
 
     const lastChecklist = await this.prisma.vehicleCheckList.findFirst({
       orderBy: {
@@ -159,20 +338,84 @@ export class VehicleChecklistService {
       nextNumber,
     ).padStart(4, "0")}`;
 
-    return this.prisma.vehicleCheckList.create({
+    const creatorRole = this.role(user) as any;
+    const now = new Date();
+
+    const isCreatedByDriver = this.isDriver(user);
+    const selectedReviewerId = Number(data.supervisorUserId || 0);
+
+    let selectedReviewer: any = null;
+
+    if (selectedReviewerId) {
+      selectedReviewer = await this.prisma.user.findFirst({
+        where: {
+          id: selectedReviewerId,
+          isActive: true,
+          role: {
+            in: ["SUPERVISOR", "PREVENCION"],
+          },
+        },
+      });
+
+      if (!selectedReviewer) {
+        throw new ForbiddenException(
+          "Debes seleccionar un supervisor o prevención válido",
+        );
+      }
+    }
+
+    if (isCreatedByDriver && !selectedReviewerId) {
+      throw new ForbiddenException(
+        "Debes seleccionar un supervisor o prevención para la firma",
+      );
+    }
+
+    const created = await this.prisma.vehicleCheckList.create({
       data: {
         folio: generatedFolio,
         date: this.toDate(data.date) || new Date(),
         patent: data.patent || "SIN_PATENTE",
         mileage: Number(data.mileage || 0),
         maintenanceUpToDate: data.maintenanceUpToDate || null,
+        padron: data.padron || null,
+
         vehicleType: data.vehicleType || null,
         vehicleModel: data.vehicleModel || null,
-        driverName: data.driverName || user.name || "Sin conductor",
-        supervisorName: data.supervisorName || null,
+
+        driverName: data.driverName || driver.name || "Sin conductor",
+        driverUserId: driver.id,
+
+        supervisorName:
+          data.supervisorName || selectedReviewer?.name || null,
+        supervisorUserId: selectedReviewerId || null,
+        inspectorName: isCreatedByDriver
+          ? data.inspectorName || null
+          : data.inspectorName || user.name,
+
         driverSignatureUrl: driverSignature
           ? `/uploads/vehicle-checklist/${driverSignature.filename}`
           : null,
+
+        inspectorSignatureUrl: inspectorSignature
+          ? `/uploads/vehicle-checklist/${inspectorSignature.filename}`
+          : null,
+
+        driverSignedAt: driverSignature ? now : null,
+        inspectorSignedAt: inspectorSignature ? now : null,
+
+        supervisorSignatureUrl: null,
+        preventionSignatureUrl: null,
+        superadminSignatureUrl: null,
+
+        supervisorSignedAt: null,
+        preventionSignedAt: null,
+        superadminSignedAt: null,
+
+        preventionName: null,
+        superadminName: null,
+
+        createdByRole: creatorRole,
+        completedAt: null,
 
         technicalReview: this.toDate(data.technicalReview),
         technicalReviewStatus: this.normalizeDocumentStatus(
@@ -199,8 +442,8 @@ export class VehicleChecklistService {
           data.mandatoryInsuranceStatus,
         ) as any,
 
-        generalObservation: data.observations || null,
-        status: data.status || "PENDIENTE",
+        generalObservation: data.observations || data.generalObservation || null,
+        status: "PENDIENTE_FIRMAS",
         userId: user.id,
 
         items: {
@@ -218,26 +461,31 @@ export class VehicleChecklistService {
           })),
         },
       },
-      include: {
-        items: true,
-        photos: true,
-        user: true,
-      },
+      include: this.checklistInclude(),
     });
+
+    if (isCreatedByDriver) {
+      await this.notifySelectedReviewer(created);
+    } else {
+      await this.notifyDriver(created);
+    }
+
+    return this.updateStatusIfCompleted(created.id);
   }
 
   async findMine(currentUser: any) {
     const user = await this.getLoggedUser(currentUser);
+    this.ensureTecnicoOut(user);
+
+    if (this.isReviewer(user)) {
+      return this.finished(currentUser);
+    }
 
     return this.prisma.vehicleCheckList.findMany({
       where: {
-        userId: user.id,
+        OR: [{ userId: user.id }, { driverUserId: user.id }],
       },
-      include: {
-        items: true,
-        photos: true,
-        user: true,
-      },
+      include: this.checklistInclude(),
       orderBy: {
         createdAt: "desc",
       },
@@ -245,31 +493,229 @@ export class VehicleChecklistService {
   }
 
   async findAllForSuperadmin(currentUser: any) {
-    const user = await this.getLoggedUser(currentUser);
+  const user = await this.getLoggedUser(currentUser);
+  this.ensureTecnicoOut(user);
 
-    if (!this.isSuperadmin(user)) {
-      throw new ForbiddenException("Solo SUPERADMIN puede ver todos los check list");
+  if (!this.isReviewer(user)) {
+    throw new ForbiddenException(
+      "No tienes permiso para ver todos los check list",
+    );
+  }
+
+  return this.prisma.vehicleCheckList.findMany({
+    include: this.checklistInclude(),
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
+  async finished(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+    this.ensureTecnicoOut(user);
+
+    if (this.isDriver(user)) {
+      return this.prisma.vehicleCheckList.findMany({
+        where: {
+          OR: [{ userId: user.id }, { driverUserId: user.id }],
+          status: "COMPLETADO",
+        },
+        include: this.checklistInclude(),
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    }
+
+    if (!this.isReviewer(user)) {
+      throw new ForbiddenException("No tienes permiso para ver check list terminados");
     }
 
     return this.prisma.vehicleCheckList.findMany({
-      include: {
-        items: true,
-        photos: true,
-        user: true,
+      where: {
+        status: "COMPLETADO",
       },
+      include: this.checklistInclude(),
       orderBy: {
         createdAt: "desc",
       },
     });
   }
 
+  async pendingSignatures(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+    this.ensureTecnicoOut(user);
+
+    if (this.isDriver(user)) {
+      return this.prisma.vehicleCheckList.findMany({
+        where: {
+          driverUserId: user.id,
+          driverSignatureUrl: null,
+          status: "PENDIENTE_FIRMAS",
+        },
+        include: this.checklistInclude(),
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    }
+
+    if (!this.isReviewer(user)) {
+      throw new ForbiddenException("No tienes permiso para ver firmas pendientes");
+    }
+
+    const role = this.role(user);
+
+    const where: any = {
+      status: "PENDIENTE_FIRMAS",
+      createdByRole: "CONDUCTOR",
+      supervisorUserId: user.id,
+    };
+
+    if (role === "SUPERVISOR") {
+      where.supervisorSignatureUrl = null;
+    }
+
+    if (role === "PREVENCION") {
+      where.preventionSignatureUrl = null;
+    }
+
+    if (role === "SUPERADMIN") {
+      where.superadminSignatureUrl = null;
+    }
+
+    return this.prisma.vehicleCheckList.findMany({
+      where,
+      include: this.checklistInclude(),
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async signChecklist(
+    currentUser: any,
+    id: number,
+    signature?: Express.Multer.File | null,
+  ) {
+    const user = await this.getLoggedUser(currentUser);
+    this.ensureTecnicoOut(user);
+
+    if (!signature) {
+      throw new ForbiddenException("Debes adjuntar una firma");
+    }
+
+    const check = await this.prisma.vehicleCheckList.findUnique({
+      where: { id },
+      include: this.checklistInclude(),
+    });
+
+    if (!check) {
+      throw new NotFoundException("Check list no encontrado");
+    }
+
+    const signatureUrl = `/uploads/vehicle-checklist/${signature.filename}`;
+    const now = new Date();
+
+    if (this.isDriver(user)) {
+      if (check.driverUserId !== user.id) {
+        throw new ForbiddenException("Este check list no está asignado a este conductor");
+      }
+
+      if (check.driverSignatureUrl) {
+        throw new ForbiddenException("Este check list ya fue firmado por el conductor");
+      }
+
+      await this.prisma.vehicleCheckList.update({
+        where: { id },
+        data: {
+          driverSignatureUrl: signatureUrl,
+          driverSignedAt: now,
+          driverName: check.driverName || user.name,
+        },
+      });
+
+      return this.updateStatusIfCompleted(id);
+    }
+
+    if (!this.isReviewer(user)) {
+      throw new ForbiddenException("No tienes permiso para firmar este check list");
+    }
+
+    const role = this.role(user);
+
+    if (check.createdByRole !== "CONDUCTOR") {
+      throw new ForbiddenException(
+        "Este check list ya fue creado por inspector. Solo falta firma del conductor.",
+      );
+    }
+
+    if (check.supervisorUserId && check.supervisorUserId !== user.id) {
+      throw new ForbiddenException(
+        "Este check list fue asignado a otro supervisor o prevención",
+      );
+    }
+
+    if (role === "SUPERVISOR") {
+      if (check.supervisorSignatureUrl) {
+        throw new ForbiddenException("Este check list ya fue firmado por supervisor");
+      }
+
+      await this.prisma.vehicleCheckList.update({
+        where: { id },
+        data: {
+          supervisorSignatureUrl: signatureUrl,
+          supervisorSignedAt: now,
+          supervisorName: check.supervisorName || user.name,
+          inspectorName: check.inspectorName || user.name,
+          inspectorSignatureUrl: check.inspectorSignatureUrl || signatureUrl,
+          inspectorSignedAt: check.inspectorSignedAt || now,
+        },
+      });
+
+      return this.updateStatusIfCompleted(id);
+    }
+
+    if (role === "PREVENCION") {
+      if (check.preventionSignatureUrl) {
+        throw new ForbiddenException("Este check list ya fue firmado por prevención");
+      }
+
+      await this.prisma.vehicleCheckList.update({
+        where: { id },
+        data: {
+          preventionSignatureUrl: signatureUrl,
+          preventionSignedAt: now,
+          preventionName: user.name,
+        },
+      });
+
+      return this.updateStatusIfCompleted(id);
+    }
+
+    if (role === "SUPERADMIN") {
+      if (check.superadminSignatureUrl) {
+        throw new ForbiddenException("Este check list ya fue firmado por superadmin");
+      }
+
+      await this.prisma.vehicleCheckList.update({
+        where: { id },
+        data: {
+          superadminSignatureUrl: signatureUrl,
+          superadminSignedAt: now,
+          superadminName: user.name,
+        },
+      });
+
+      return this.updateStatusIfCompleted(id);
+    }
+
+    throw new ForbiddenException("No tienes permiso para firmar este check list");
+  }
+
   async findAll() {
     return this.prisma.vehicleCheckList.findMany({
-      include: {
-        items: true,
-        photos: true,
-        user: true,
-      },
+      include: this.checklistInclude(),
       orderBy: {
         createdAt: "desc",
       },
@@ -283,11 +729,7 @@ export class VehicleChecklistService {
 
     const checklist = await this.prisma.vehicleCheckList.findUnique({
       where: { id },
-      include: {
-        items: true,
-        photos: true,
-        user: true,
-      },
+      include: this.checklistInclude(),
     });
 
     if (!checklist) {
@@ -361,13 +803,17 @@ export class VehicleChecklistService {
     };
 
     const drawX = (x: number, y: number, w: number, h: number) => {
-      doc
-        .moveTo(x + 5, y + 5)
-        .lineTo(x + w - 5, y + h - 5)
-        .moveTo(x + w - 5, y + 5)
-        .lineTo(x + 5, y + h - 5)
-        .stroke(black);
-    };
+  doc
+    .save()
+    .lineWidth(1.6)
+    .strokeColor("#000000")
+    .moveTo(x + 4, y + 4)
+    .lineTo(x + w - 4, y + h - 4)
+    .moveTo(x + w - 4, y + 4)
+    .lineTo(x + 4, y + h - 4)
+    .stroke()
+    .restore();
+};
 
     const normalizeStatus = (value: any) =>
       String(value || "").trim().toUpperCase();
@@ -378,9 +824,16 @@ export class VehicleChecklistService {
     };
 
     const getPathFromUrl = (url: any) => {
-      const relativePath = String(url || "").replace(/^\/+/, "");
-      return path.join(process.cwd(), relativePath);
-    };
+  const relativePath = String(url || "").replace(/^\/+/, "");
+
+  const candidates = [
+    path.join(process.cwd(), relativePath),
+    path.join(process.cwd(), "..", relativePath),
+    path.join("/app", relativePath),
+  ];
+
+  return candidates.find((item) => fs.existsSync(item)) || candidates[0];
+};
 
     const logoCandidates = [
       path.join(process.cwd(), "uploads", "branding", "logo-insprotel.png"),
@@ -444,46 +897,70 @@ export class VehicleChecklistService {
     };
 
     const drawSignatureImage = (
-      x: number,
-      yStart: number,
-      w: number,
-      h: number,
-      signatureUrl: any,
-    ) => {
-      if (!signatureUrl) return;
+  x: number,
+  yStart: number,
+  w: number,
+  h: number,
+  signatureUrl: any,
+) => {
+  if (!signatureUrl) return;
 
-      const signaturePath = getPathFromUrl(signatureUrl);
+  const signaturePath = getPathFromUrl(signatureUrl);
 
-      if (!fs.existsSync(signaturePath)) return;
+  if (!fs.existsSync(signaturePath)) {
+    doc
+      .font("Helvetica")
+      .fontSize(6)
+      .fillColor("#dc2626")
+      .text("Firma no encontrada", x, yStart + 10, {
+        width: w,
+        align: "center",
+      });
+    return;
+  }
 
-      try {
-        const signatureBoxW = w - 80;
-        const signatureBoxH = h;
+  try {
+    doc.image(signaturePath, x + 18, yStart + 2, {
+      fit: [w - 36, h - 4],
+      align: "center",
+      valign: "center",
+    });
+  } catch {
+    doc
+      .font("Helvetica")
+      .fontSize(6)
+      .fillColor("#dc2626")
+      .text("No se pudo cargar firma", x, yStart + 10, {
+        width: w,
+        align: "center",
+      });
+  }
+};
 
-        doc.image(signaturePath, x + 40, yStart, {
-          width: signatureBoxW,
-          height: signatureBoxH,
-          fit: [signatureBoxW, signatureBoxH],
-          align: "center",
-          valign: "center",
-        });
-      } catch {
-        // No romper PDF si falla firma
-      }
-    };
+    const isoLogoCandidates = [
+      path.join(process.cwd(), "uploads", "branding", "sgs.png"),
+      path.join(process.cwd(), "uploads", "branding", "iso.png"),
+      path.join(process.cwd(), "uploads", "sgs.png"),
+    ];
+
+    const isoLogoPath = isoLogoCandidates.find((item) => fs.existsSync(item));
 
     const headerY = 18;
     const headerH = 48;
-    const logoW = 180;
-    const titleW = contentWidth - logoW;
+    const logoW = 170;
+    const isoW = 130;
+    const titleW = contentWidth - logoW - isoW;
 
     drawCell(margin, headerY, logoW, headerH, "");
 
     if (logoPath) {
       try {
-        doc.image(logoPath, margin + 14, headerY + 6, {
-          width: 150,
-          height: 38,
+        doc.image(logoPath, margin + 12, headerY + 7, {
+          width: 145,
+          height: 34,
+          fit: [145, 34],
+          align: "center",
+          valign: "center",
         });
       } catch {
         doc
@@ -500,18 +977,39 @@ export class VehicleChecklistService {
         .text("INSPROTEL", margin + 18, headerY + 18);
     }
 
-    drawCell(margin + logoW, headerY, titleW, headerH, "", {
-      bold: true,
-    });
+    drawCell(margin + logoW, headerY, titleW, headerH, "");
 
     doc
       .font("Helvetica-Bold")
       .fontSize(18)
       .fillColor(black)
-      .text("CHECK LIST VEHÍCULOS", margin + logoW, headerY + 16, {
+      .text("CHECK LIST VEHÍCULOS", margin + logoW, headerY + 15, {
         width: titleW,
         align: "center",
       });
+
+    drawCell(margin + logoW + titleW, headerY, isoW, headerH, "");
+
+    if (isoLogoPath) {
+      try {
+        doc.image(isoLogoPath, margin + logoW + titleW + 8, headerY + 5, {
+          width: isoW - 16,
+          height: headerH - 10,
+          fit: [isoW - 16, headerH - 10],
+          align: "center",
+          valign: "center",
+        });
+      } catch {
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(7)
+          .fillColor(black)
+          .text("ISO", margin + logoW + titleW, headerY + 18, {
+            width: isoW,
+            align: "center",
+          });
+      }
+    }
 
     const topY = 78;
     const leftW = 260;
@@ -519,6 +1017,7 @@ export class VehicleChecklistService {
     const rightX = margin + leftW + 10;
 
     const infoRows = [
+      ["Check List N°", this.text(checklist.folio)],
       ["Fecha", this.formatDate(checklist.date)],
       ["Patente", this.text(checklist.patent)],
       ["Kilometraje", this.text(checklist.mileage)],
@@ -528,69 +1027,58 @@ export class VehicleChecklistService {
         "Mantención al día",
         this.formatMaintenance((checklist as any).maintenanceUpToDate),
       ],
+      ["Padrón", this.text((checklist as any).padron)],
     ];
 
     let y = topY;
 
     infoRows.forEach(([label, value]) => {
-      drawCell(margin, y, 100, 16, label, { fill: gray, bold: true });
-      drawCell(margin + 100, y, leftW - 100, 16, value, {
-        fontSize: 8,
+      drawCell(margin, y, 100, 15, label, { fill: gray, bold: true });
+      drawCell(margin + 100, y, leftW - 100, 15, value, {
+        fontSize: 7.5,
         bold: true,
         align: "center",
       });
-      y += 16;
+      y += 15;
     });
 
     const docHeaderH = 16;
 
-    drawCell(rightX, topY, 145, docHeaderH, "Marque con una X", {
+    drawCell(rightX, topY, 122, docHeaderH, "Marque con una X", {
       bold: true,
       align: "center",
       fill: gray,
     });
-    drawCell(rightX + 145, topY, 48, docHeaderH, "Fecha", {
+    drawCell(rightX + 122, topY, 48, docHeaderH, "Fecha", {
       bold: true,
       align: "center",
       fill: gray,
     });
-    drawCell(rightX + 193, topY, 38, docHeaderH, "Vigente", {
+    drawCell(rightX + 170, topY, 33, docHeaderH, "Vigente", {
       bold: true,
       align: "center",
       fill: gray,
+      fontSize: 5.5,
     });
-    drawCell(rightX + 231, topY, 38, docHeaderH, "Vencida", {
+    drawCell(rightX + 203, topY, 33, docHeaderH, "Vencida", {
       bold: true,
       align: "center",
       fill: gray,
+      fontSize: 5.5,
+    });
+    drawCell(rightX + 236, topY, 33, docHeaderH, "N/A", {
+      bold: true,
+      align: "center",
+      fill: gray,
+      fontSize: 5.5,
     });
 
     const docs = [
-      [
-        "Revisión Técnica",
-        checklist.technicalReview,
-        (checklist as any).technicalReviewStatus,
-      ],
-      [
-        "Emisión Gases Contaminantes",
-        checklist.gasEmissionReview,
-        (checklist as any).gasEmissionReviewStatus,
-      ],
-      [
-        "Permiso Circulación",
-        checklist.circulationPermitExpiration,
-        (checklist as any).circulationPermitStatus,
-      ],
-      [
-        "Seguro Obligatorio",
-        checklist.mandatoryInsuranceExpiration,
-        (checklist as any).mandatoryInsuranceStatus,
-      ],
-      [
-        "Vigencia Licencia de Conducir",
-        checklist.driverLicenseExpiration,
-        (checklist as any).driverLicenseStatus,
-      ],
+      ["Revisión Técnica", checklist.technicalReview, (checklist as any).technicalReviewStatus],
+      ["Emisión Gases Contaminantes", checklist.gasEmissionReview, (checklist as any).gasEmissionReviewStatus],
+      ["Permiso Circulación", checklist.circulationPermitExpiration, (checklist as any).circulationPermitStatus],
+      ["Seguro Obligatorio", checklist.mandatoryInsuranceExpiration, (checklist as any).mandatoryInsuranceStatus],
+      ["Vigencia Licencia de Conducir", checklist.driverLicenseExpiration, (checklist as any).driverLicenseStatus],
     ];
 
     y = topY + docHeaderH;
@@ -598,28 +1086,26 @@ export class VehicleChecklistService {
     docs.forEach(([label, value, documentStatus]: any[]) => {
       const status = this.normalizeDocumentStatus(documentStatus);
 
-      drawCell(rightX, y, 145, 16, label, {
+      drawCell(rightX, y, 122, 16, label, {
         bold: true,
         align: "center",
+        fontSize: 5.8,
       });
-      drawCell(rightX + 145, y, 48, 16, this.formatDate(value), {
+      drawCell(rightX + 122, y, 48, 16, this.formatDate(value), {
         align: "center",
       });
-      drawCell(rightX + 193, y, 38, 16, "");
-      drawCell(rightX + 231, y, 38, 16, "");
+      drawCell(rightX + 170, y, 33, 16, "");
+      drawCell(rightX + 203, y, 33, 16, "");
+      drawCell(rightX + 236, y, 33, 16, "");
 
-      if (status === "VIGENTE") {
-        drawX(rightX + 193, y, 38, 16);
-      }
-
-      if (status === "VENCIDA") {
-        drawX(rightX + 231, y, 38, 16);
-      }
+      if (status === "VIGENTE") drawX(rightX + 170, y, 33, 16);
+      if (status === "VENCIDA") drawX(rightX + 203, y, 33, 16);
+      if (status === "NO_APLICA") drawX(rightX + 236, y, 33, 16);
 
       y += 16;
     });
 
-    const tableY = 188;
+    const tableY = 208;
     const tableGap = 10;
     const tableW = (contentWidth - tableGap) / 2;
     const rowH = 16;
@@ -658,19 +1144,12 @@ export class VehicleChecklistService {
         align: "center",
         fill: gray,
       });
-      drawCell(
-        x + colElemento + colSmall * 2,
-        yy,
-        colSmall,
-        rowH,
-        "No aplica",
-        {
-          bold: true,
-          align: "center",
-          fill: gray,
-          fontSize: 4.6,
-        },
-      );
+      drawCell(x + colElemento + colSmall * 2, yy, colSmall, rowH, "No aplica", {
+        bold: true,
+        align: "center",
+        fill: gray,
+        fontSize: 4.6,
+      });
       drawCell(x + colElemento + colSmall * 3, yy, colObs, rowH, "Observación", {
         bold: true,
         align: "center",
@@ -701,15 +1180,9 @@ export class VehicleChecklistService {
           { fontSize: 5.4 },
         );
 
-        if (status === "BUENO") {
-          drawX(x + colElemento, yy, colSmall, rowH);
-        } else if (status === "MALO") {
-          drawX(x + colElemento + colSmall, yy, colSmall, rowH);
-        } else if (
-          status === "NO" ||
-          status === "NO APLICA" ||
-          status === "NO_APLICA"
-        ) {
+        if (status === "BUENO") drawX(x + colElemento, yy, colSmall, rowH);
+        else if (status === "MALO") drawX(x + colElemento + colSmall, yy, colSmall, rowH);
+        else if (status === "NO" || status === "NO APLICA" || status === "NO_APLICA") {
           drawX(x + colElemento + colSmall * 2, yy, colSmall, rowH);
         }
 
@@ -721,24 +1194,20 @@ export class VehicleChecklistService {
     drawChecklistTable(margin + tableW + tableGap, tableY, rightItems);
 
     const photos = checklist.photos || [];
-    let currentY = 372;
+    let currentY = 392;
 
     if (photos.length > 0) {
-      drawCell(
-        margin,
-        currentY,
-        contentWidth,
-        18,
-        "Evidencia fotografica de desperfecto",
-        { bold: true, align: "center", fontSize: 7 },
-      );
+      drawCell(margin, currentY, contentWidth, 18, "Evidencia fotográfica de desperfecto", {
+        bold: true,
+        align: "center",
+        fontSize: 7,
+      });
 
       currentY += 18;
 
       const photosPerRow = photos.length <= 2 ? 2 : 3;
       const photoGap = 8;
-      const photoW =
-        (contentWidth - photoGap * (photosPerRow - 1)) / photosPerRow;
+      const photoW = (contentWidth - photoGap * (photosPerRow - 1)) / photosPerRow;
       const photoH = photos.length <= 2 ? 150 : 96;
 
       photos.forEach((photo: any, index: number) => {
@@ -752,14 +1221,12 @@ export class VehicleChecklistService {
           doc.addPage();
           currentY = 28;
 
-          drawCell(
-            margin,
-            currentY,
-            contentWidth,
-            18,
-            "Continuación registro fotográfico",
-            { bold: true, align: "center", fontSize: 8, fill: gray },
-          );
+          drawCell(margin, currentY, contentWidth, 18, "Continuación registro fotográfico", {
+            bold: true,
+            align: "center",
+            fontSize: 8,
+            fill: gray,
+          });
 
           currentY += 22;
         }
@@ -772,14 +1239,11 @@ export class VehicleChecklistService {
 
       currentY += photoH + 18;
     } else {
-      drawCell(
-        margin,
-        currentY,
-        contentWidth,
-        18,
-        "Evidencia fotografica de desperfecto",
-        { bold: true, align: "center", fontSize: 7 },
-      );
+      drawCell(margin, currentY, contentWidth, 18, "Evidencia fotográfica de desperfecto", {
+        bold: true,
+        align: "center",
+        fontSize: 7,
+      });
 
       currentY += 18;
 
@@ -820,23 +1284,18 @@ export class VehicleChecklistService {
       .font("Helvetica")
       .fontSize(10)
       .fillColor(black)
-      .text(
-        this.text(checklist.generalObservation || ""),
-        margin + 14,
-        currentY + 14,
-        {
-          width: contentWidth - 28,
-          height: obsH - 18,
-          align: "left",
-        },
-      );
+      .text(this.text(checklist.generalObservation || ""), margin + 14, currentY + 14, {
+        width: contentWidth - 28,
+        height: obsH - 18,
+        align: "left",
+      });
 
     currentY += obsH + 18;
 
     const signH = 72;
     const signW = (contentWidth - 10) / 2;
 
-    drawCell(margin, currentY, signW, 16, "Nombre y firma del trabajador:", {
+    drawCell(margin, currentY, signW, 16, "Nombre y firma Conductor:", {
       bold: true,
       align: "center",
       fill: gray,
@@ -844,13 +1303,7 @@ export class VehicleChecklistService {
 
     doc.rect(margin, currentY + 16, signW, signH).stroke(black);
 
-    drawSignatureImage(
-      margin,
-      currentY + 18,
-      signW,
-      38,
-      checklist.driverSignatureUrl,
-    );
+    drawSignatureImage(margin, currentY + 18, signW, 38, checklist.driverSignatureUrl);
 
     doc
       .font("Helvetica")
@@ -861,7 +1314,7 @@ export class VehicleChecklistService {
         align: "center",
       });
 
-    drawCell(margin + signW + 10, currentY, signW, 16, "Supervisor", {
+    drawCell(margin + signW + 10, currentY, signW, 16, "Nombre y firma Inspector:", {
       bold: true,
       align: "center",
       fill: gray,
@@ -869,14 +1322,31 @@ export class VehicleChecklistService {
 
     doc.rect(margin + signW + 10, currentY + 16, signW, signH).stroke(black);
 
+    drawSignatureImage(
+      margin + signW + 10,
+      currentY + 18,
+      signW,
+      38,
+      (checklist as any).inspectorSignatureUrl ||
+        (checklist as any).supervisorSignatureUrl ||
+        (checklist as any).preventionSignatureUrl ||
+        (checklist as any).superadminSignatureUrl,
+    );
+
     doc
       .font("Helvetica")
-      .fontSize(13)
+      .fontSize(11)
       .fillColor(black)
       .text(
-        this.text(checklist.supervisorName || ""),
+        this.text(
+          (checklist as any).inspectorName ||
+            checklist.supervisorName ||
+            (checklist as any).preventionName ||
+            (checklist as any).superadminName ||
+            "",
+        ),
         margin + signW + 10,
-        currentY + 48,
+        currentY + 58,
         {
           width: signW,
           align: "center",
@@ -888,6 +1358,7 @@ export class VehicleChecklistService {
 
   async remove(id: number, currentUser?: any) {
     const user = await this.getLoggedUser(currentUser);
+    this.ensureTecnicoOut(user);
 
     const checklist = await this.prisma.vehicleCheckList.findUnique({
       where: {
@@ -899,8 +1370,8 @@ export class VehicleChecklistService {
       throw new NotFoundException("Check list no encontrado");
     }
 
-    if (!this.isSuperadmin(user) && checklist.userId !== user.id) {
-      throw new ForbiddenException("No tienes permiso para eliminar este check list");
+    if (!this.isSuperadmin(user)) {
+      throw new ForbiddenException("Solo SUPERADMIN puede eliminar check list vehículos");
     }
 
     return this.prisma.vehicleCheckList.delete({

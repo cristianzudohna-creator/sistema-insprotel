@@ -2,52 +2,37 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
-  FileText,
-  Plus,
-  Trash2,
-  Users,
   ShieldCheck,
+  Save,
   History,
+  AlertTriangle,
   Check,
   PenLine,
   RotateCcw,
-  Lock,
-  Unlock,
+  ClipboardList,
 } from "lucide-react";
 
-import "./SafetyTalks.css";
+import "./HarnessCheck.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-const SAFETY_TALK_PARTICIPANT_ROLES = [
-  "SUPERADMIN",
-  "TECNICO",
-  "CONDUCTOR",
-  "SUPERVISOR",
-  "PREVENCION",
+const CHECK_ITEMS = [
+  "¿El equipo se encuentra debidamente certificado?",
+  "¿Los conectores de las colas se encuentran sin deformaciones?",
+  "¿Los seguros de los conectores se encuentran operativos?",
+  "¿Los herrajes están forjados con identificación del fabricante?",
+  "¿Las costuras y fibras de la correa están exentas de roturas, grietas o desgaste excesivo?",
+  "¿El arnés de seguridad está libre de quemaduras y de sustancias químicas?",
+  "¿El mosquetón cuenta con doble seguro y éste cierra sin trabamientos?",
+  "¿Los ganchos, hebillas y mosquetones están libres de deformaciones?",
+  "¿El estrobo o cola de seguridad está bien trenzada, es flexible y está sin cortes?",
+  "¿Los accesorios del arnés se encuentran sin deformaciones?",
+  "¿El equipo cuenta con amortiguador de impacto?",
+  "¿El amortiguador está certificado?",
+  "¿Las líneas de vida se encuentran en buen estado?",
+  '¿Las colas "Y", cuentan con gancho estructurero?',
+  "¿Las colas o cabos del arnés se encuentran sin roturas, grietas o desgaste excesivo?",
 ];
-
-function todayInputDate() {
-  const today = new Date();
-
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function currentInputTime() {
-  return new Date().toTimeString().slice(0, 5);
-}
-
-function getLoggedUser() {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-}
 
 function getToken() {
   return (
@@ -57,36 +42,11 @@ function getToken() {
   );
 }
 
-function normalizeRole(role) {
-  return String(role || "").toUpperCase();
-}
-
-function getCreatorRole(user) {
-  const role = normalizeRole(user?.role);
-
-  if (SAFETY_TALK_PARTICIPANT_ROLES.includes(role)) {
-    return role;
-  }
-
-  return "TECNICO";
-}
-
-function createParticipant() {
-  return {
-    userId: "",
-    name: "",
-    rut: "",
-    role: "",
-    search: "",
-    isSearching: false,
-    compliesRest: true,
-  };
-}
-
 function dataUrlToFile(dataUrl, filename) {
   const arr = dataUrl.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
   const binary = atob(arr[1]);
+
   let length = binary.length;
   const array = new Uint8Array(length);
 
@@ -97,127 +57,57 @@ function dataUrlToFile(dataUrl, filename) {
   return new File([array], filename, { type: mime });
 }
 
-function getCroppedSignatureDataUrl(canvas) {
-  const ctx = canvas.getContext("2d");
-  const width = canvas.width;
-  const height = canvas.height;
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
-
-  let minX = width;
-  let minY = height;
-  let maxX = 0;
-  let maxY = 0;
-  let hasInk = false;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const index = (y * width + x) * 4;
-      const r = data[index];
-      const g = data[index + 1];
-      const b = data[index + 2];
-      const a = data[index + 3];
-
-      if (a > 0 && (r < 245 || g < 245 || b < 245)) {
-        hasInk = true;
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
-    }
-  }
-
-  if (!hasInk) return canvas.toDataURL("image/png");
-
-  const padding = 28;
-
-  minX = Math.max(0, minX - padding);
-  minY = Math.max(0, minY - padding);
-  maxX = Math.min(width, maxX + padding);
-  maxY = Math.min(height, maxY + padding);
-
-  const cropWidth = maxX - minX;
-  const cropHeight = maxY - minY;
-
-  const croppedCanvas = document.createElement("canvas");
-  croppedCanvas.width = cropWidth;
-  croppedCanvas.height = cropHeight;
-
-  const croppedCtx = croppedCanvas.getContext("2d");
-  croppedCtx.fillStyle = "#ffffff";
-  croppedCtx.fillRect(0, 0, cropWidth, cropHeight);
-  croppedCtx.drawImage(
-    canvas,
-    minX,
-    minY,
-    cropWidth,
-    cropHeight,
-    0,
-    0,
-    cropWidth,
-    cropHeight,
-  );
-
-  return croppedCanvas.toDataURL("image/png");
+function buildInitialItems() {
+  return CHECK_ITEMS.map((description) => ({
+    description,
+    status: "",
+    observation: "",
+  }));
 }
 
-function SafetyTalks() {
-  const navigate = useNavigate();
-  const canvasRef = useRef(null);
-  const drawingRef = useRef(false);
+function getAutomaticStatus(items) {
+  const hasRejected = items.some((item) => item.status === "NO");
+  const allCompleted = items.every((item) => item.status);
 
-  const user = getLoggedUser();
+  if (hasRejected) return "RECHAZADO";
+  if (allCompleted) return "APROBADO";
+
+  return "PENDIENTE";
+}
+
+function HarnessCheck() {
+  const navigate = useNavigate();
+
+  const supervisorCanvasRef = useRef(null);
+  const drawingRef = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
-  const [hasSignature, setHasSignature] = useState(false);
-  const [signatureLocked, setSignatureLocked] = useState(false);
-  const [signatureDataUrl, setSignatureDataUrl] = useState("");
-  const [workers, setWorkers] = useState([]);
 
-  const [participants, setParticipants] = useState([
-    createParticipant(),
-    createParticipant(),
-  ]);
+  const [workers, setWorkers] = useState([]);
+  const [technicianSearch, setTechnicianSearch] = useState("");
+  const [technicianSearching, setTechnicianSearching] = useState(false);
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState("");
+
+  const [hasSupervisorSignature, setHasSupervisorSignature] = useState(false);
+  const [signatureEnabled, setSignatureEnabled] = useState(false);
 
   const [form, setForm] = useState({
-    date: todayInputDate(),
-    meetingTime: currentInputTime(),
-    areaLocationInstallation: "",
-    workOrderProject: "",
-    workPermitActivity: "",
-    worksToDo: "",
-    foremanOrBrigadeName: user?.name || "",
-    foremanCompany: "INSPROTEL",
-    workTypes: "",
-    significantRisks: "",
-    analyzedAccident: "",
-    creatorRole: getCreatorRole(user),
-    createdByName: user?.name || "",
-    createdByRut: user?.rut || "",
-    controlMeasure1: "",
-    controlMeasure2: "",
-    controlMeasure3: "",
-    controlMeasure4: "",
-    controlMeasure5: "",
-    controlMeasure6: "",
-    controlMeasure7: "",
-    controlMeasure8: "",
-    controlMeasure9: "",
-    controlMeasure10: "",
-    controlMeasure11: "",
-    controlMeasure12: "",
+    expirationDate: "",
+    contract: "",
+    technicianName: "",
+    mobile: "",
+    supervisorInspectorName: "",
+    zone: "",
+    generalObservation: "",
   });
 
-  useEffect(() => {
-    setTimeout(prepareCanvas, 100);
-    window.addEventListener("resize", prepareCanvas);
-    loadWorkers();
+  const [items, setItems] = useState(buildInitialItems());
 
-    return () => {
-      window.removeEventListener("resize", prepareCanvas);
-    };
+  const automaticStatus = getAutomaticStatus(items);
+
+  useEffect(() => {
+    loadWorkers();
   }, []);
 
   async function loadWorkers() {
@@ -233,118 +123,12 @@ function SafetyTalks() {
       }
 
       const data = await response.json();
-      const filteredWorkers = Array.isArray(data)
-  ? data.filter((worker) => {
-      const isAllowedRole = SAFETY_TALK_PARTICIPANT_ROLES.includes(
-        normalizeRole(worker.role),
-      );
-
-      const isCurrentUser = String(worker.id) === String(user?.id);
-
-      return isAllowedRole && !isCurrentUser;
-    })
-  : [];
-
-      setWorkers(filteredWorkers);
+      setWorkers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
       setWorkers([]);
       alert("Error cargando trabajadores");
     }
-  }
-
-  function prepareCanvas() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const parent = canvas.parentElement;
-    const width = parent?.clientWidth || 600;
-    const height = window.innerWidth <= 768 ? 180 : 220;
-    const ratio = window.devicePixelRatio || 1;
-    const previous = hasSignature ? canvas.toDataURL("image/png") : null;
-
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-
-   const ctx = canvas.getContext("2d");
-ctx.scale(ratio, ratio);
-ctx.lineWidth = 2.4;
-ctx.lineCap = "round";
-ctx.lineJoin = "round";
-ctx.strokeStyle = "#111827";
-ctx.fillStyle = "#ffffff";
-ctx.fillRect(0, 0, width, height);
-
-if (signatureDataUrl) {
-  const img = new Image();
-
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, width, height);
-  };
-
-  img.src = signatureDataUrl;
-}
-}
-
-function getCanvasPoint(event, canvas) {
-  const rect = canvas.getBoundingClientRect();
-  const touch = event.touches?.[0];
-
-  return {
-    x: (touch ? touch.clientX : event.clientX) - rect.left,
-    y: (touch ? touch.clientY : event.clientY) - rect.top,
-  };
-}
-
-  function startSignature(event) {
-    if (signatureLocked) return;
-
-    event.preventDefault();
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const point = getCanvasPoint(event, canvas);
-
-    drawingRef.current = true;
-    ctx.beginPath();
-    ctx.moveTo(point.x, point.y);
-  }
-
-  function drawSignature(event) {
-    if (!drawingRef.current || signatureLocked) return;
-
-    event.preventDefault();
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const point = getCanvasPoint(event, canvas);
-
-    ctx.lineTo(point.x, point.y);
-    ctx.stroke();
-
-    setHasSignature(true);
-  }
-
-  function stopSignature() {
-    drawingRef.current = false;
-  }
-
-  function clearSignature() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-
-    ctx.clearRect(0, 0, rect.width, rect.height);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, rect.width, rect.height);
-
-    setHasSignature(false);
-    setSignatureLocked(false);
-    setSignatureDataUrl("");
   }
 
   function updateField(field, value) {
@@ -354,8 +138,56 @@ function getCanvasPoint(event, canvas) {
     }));
   }
 
-  function updateParticipant(index, field, value) {
-    setParticipants((prev) =>
+  function handleTechnicianSearch(value) {
+    setTechnicianSearch(value);
+    setTechnicianSearching(true);
+    setSelectedTechnicianId("");
+
+    setForm((prev) => ({
+      ...prev,
+      technicianName: value,
+    }));
+  }
+
+  function getTechnicianSuggestions() {
+    const search = String(technicianSearch || "").trim().toLowerCase();
+
+    if (!search || selectedTechnicianId) return [];
+
+    return workers
+      .filter((worker) => {
+        const name = String(worker.name || "").toLowerCase();
+        const rut = String(worker.rut || "").toLowerCase();
+
+        return name.includes(search) || rut.includes(search);
+      })
+      .slice(0, 8);
+  }
+
+  function selectTechnician(worker) {
+    setSelectedTechnicianId(worker.id);
+    setTechnicianSearch(worker.name || "");
+    setTechnicianSearching(false);
+
+    setForm((prev) => ({
+      ...prev,
+      technicianName: worker.name || "",
+    }));
+  }
+
+  function clearTechnician() {
+    setSelectedTechnicianId("");
+    setTechnicianSearch("");
+    setTechnicianSearching(false);
+
+    setForm((prev) => ({
+      ...prev,
+      technicianName: "",
+    }));
+  }
+
+  function updateItem(index, field, value) {
+    setItems((prev) =>
       prev.map((item, i) =>
         i === index
           ? {
@@ -367,123 +199,200 @@ function getCanvasPoint(event, canvas) {
     );
   }
 
-  function handleParticipantSearch(index, value) {
-    setParticipants((prev) =>
-      prev.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              userId: "",
-              name: "",
-              rut: "",
-              role: "",
-              search: value,
-              isSearching: true,
-            }
-          : item,
-      ),
-    );
+  function getCanvasPoint(event, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = event.touches?.[0];
+
+    return {
+      x: (touch ? touch.clientX : event.clientX) - rect.left,
+      y: (touch ? touch.clientY : event.clientY) - rect.top,
+    };
   }
 
-  function clearParticipant(index) {
-    setParticipants((prev) =>
-      prev.map((item, i) => (i === index ? createParticipant() : item)),
-    );
+  function prepareCanvas(canvas) {
+    if (!canvas) return;
+
+    const parent = canvas.parentElement;
+    const width = parent?.clientWidth || 600;
+    const height = window.innerWidth <= 768 ? 180 : 260;
+    const ratio = window.devicePixelRatio || 1;
+    const previous = hasSupervisorSignature
+      ? canvas.toDataURL("image/png")
+      : null;
+
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    const ctx = canvas.getContext("2d");
+
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#111827";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    if (previous) {
+      const img = new Image();
+
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, width, height);
+      };
+
+      img.src = previous;
+    }
   }
 
-  function getWorkerSuggestions(participant) {
-    const search = String(participant.search || "").trim().toLowerCase();
+  function startSignature(event) {
+    event.preventDefault();
 
-    if (search.length < 2 || participant.userId) return [];
+    const canvas = supervisorCanvasRef.current;
+    if (!canvas || !signatureEnabled) return;
 
-    return workers
-      .filter((worker) => {
-        const name = String(worker.name || "").toLowerCase();
-        const rut = String(worker.rut || "").toLowerCase();
-        const role = normalizeRole(worker.role);
-
-        return (
-          SAFETY_TALK_PARTICIPANT_ROLES.includes(role) &&
-          (name.includes(search) || rut.includes(search))
-        );
-      })
-      .slice(0, 8);
-  }
-
-  function selectWorker(index, worker) {
-    const alreadySelected = participants.some(
-      (participant, participantIndex) =>
-        participantIndex !== index &&
-        String(participant.userId) === String(worker.id),
-    );
-
-    if (alreadySelected) {
-      alert("Este trabajador ya fue agregado como participante.");
-      return;
+    if (!canvas.width) {
+      prepareCanvas(canvas);
     }
 
-    setParticipants((prev) =>
-      prev.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              userId: worker.id,
-              name: worker.name || "",
-              rut: worker.rut || "",
-              role: normalizeRole(worker.role),
-              search: worker.name || "",
-              isSearching: false,
-            }
-          : item,
-      ),
-    );
+    const ctx = canvas.getContext("2d");
+    const point = getCanvasPoint(event, canvas);
+
+    drawingRef.current = true;
+
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
   }
 
-  function addParticipant() {
-    if (participants.length >= 12) {
-      alert("Máximo 12 participantes.");
-      return;
-    }
+  function drawSignature(event) {
+    if (!drawingRef.current || !signatureEnabled) return;
 
-    setParticipants((prev) => [...prev, createParticipant()]);
+    event.preventDefault();
+
+    const canvas = supervisorCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    const point = getCanvasPoint(event, canvas);
+
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+
+    setHasSupervisorSignature(true);
   }
 
-  function removeParticipant(index) {
-    setParticipants((prev) => prev.filter((_, i) => i !== index));
+  function stopSignature() {
+    drawingRef.current = false;
+  }
+
+  function clearSignature() {
+    const canvas = supervisorCanvasRef.current;
+
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+
+    setHasSupervisorSignature(false);
+    setSignatureEnabled(true);
   }
 
   function resetForm() {
     setForm({
-      date: todayInputDate(),
-      meetingTime: currentInputTime(),
-      areaLocationInstallation: "",
-      workOrderProject: "",
-      workPermitActivity: "",
-      worksToDo: "",
-      foremanOrBrigadeName: user?.name || "",
-      foremanCompany: "INSPROTEL",
-      workTypes: "",
-      significantRisks: "",
-      analyzedAccident: "",
-      creatorRole: getCreatorRole(user),
-      createdByName: user?.name || "",
-      createdByRut: user?.rut || "",
-      controlMeasure1: "",
-      controlMeasure2: "",
-      controlMeasure3: "",
-      controlMeasure4: "",
-      controlMeasure5: "",
-      controlMeasure6: "",
-      controlMeasure7: "",
-      controlMeasure8: "",
-      controlMeasure9: "",
-      controlMeasure10: "",
-      controlMeasure11: "",
-      controlMeasure12: "",
+      expirationDate: "",
+      contract: "",
+      technicianName: "",
+      mobile: "",
+      supervisorInspectorName: "",
+      zone: "",
+      generalObservation: "",
     });
 
-    setParticipants([createParticipant(), createParticipant()]);
+    setTechnicianSearch("");
+    setTechnicianSearching(false);
+    setSelectedTechnicianId("");
+
+    setItems(buildInitialItems());
     clearSignature();
+    setSignatureEnabled(false);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    try {
+      if (!form.technicianName.trim()) {
+        alert("Debes seleccionar o ingresar el nombre del técnico.");
+        return;
+      }
+
+      if (!form.supervisorInspectorName.trim()) {
+        alert("Debes ingresar el nombre del supervisor / inspector.");
+        return;
+      }
+
+      if (!hasSupervisorSignature) {
+        alert("Debes registrar la firma del supervisor.");
+        return;
+      }
+
+      setLoading(true);
+
+      const supervisorFile = dataUrlToFile(
+        supervisorCanvasRef.current.toDataURL("image/png"),
+        "firma-supervisor.png",
+      );
+
+      const formData = new FormData();
+
+      formData.append("expirationDate", form.expirationDate);
+      formData.append("status", automaticStatus);
+      formData.append("contract", form.contract);
+      formData.append("technicianName", form.technicianName);
+      formData.append("mobile", form.mobile);
+      formData.append("supervisorInspectorName", form.supervisorInspectorName);
+      formData.append("zone", form.zone);
+      formData.append("generalObservation", form.generalObservation);
+
+      formData.append(
+        "items",
+        JSON.stringify(
+          items.map((item) => ({
+            description: item.description,
+            status: item.status,
+            observation: item.observation,
+          })),
+        ),
+      );
+
+      formData.append("supervisorSignature", supervisorFile);
+
+      const response = await fetch(`${API_URL}/harness-check`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Error guardando check list de arnés");
+      }
+
+      await response.json();
+
+      setSuccessModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      alert("Error guardando check list de arnés ❌");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function closeSuccessModal() {
@@ -496,393 +405,336 @@ function getCanvasPoint(event, canvas) {
     });
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    try {
-      const filledParticipants = participants.filter((item) => item.userId);
-
-      if (filledParticipants.length === 0) {
-        alert("Debes seleccionar al menos un trabajador participante.");
-        return;
-      }
-
-      if (!hasSignature) {
-        alert("Debes registrar la firma de quien realiza la reunión.");
-        return;
-      }
-
-      if (!signatureLocked) {
-        alert("Debes bloquear la firma antes de guardar.");
-        return;
-      }
-
-      setLoading(true);
-
-      const canvas = canvasRef.current;
-      const croppedSignatureDataUrl = getCroppedSignatureDataUrl(canvas);
-
-      const signatureFile = dataUrlToFile(
-        croppedSignatureDataUrl,
-        "firma-creador-charla.png",
-      );
-
-      const formData = new FormData();
-
-      Object.entries({
-  ...form,
-  foremanOrBrigadeName: user?.name || form.foremanOrBrigadeName || "",
-  foremanCompany: "INSPROTEL",
-  creatorRole: getCreatorRole(user),
-  createdByName: user?.name || form.createdByName || "",
-  createdByRut: user?.rut || form.createdByRut || "",
-}).forEach(([key, value]) => {
-        formData.append(key, value ?? "");
-      });
-
-      formData.append(
-  "peopleCount",
-  String(filledParticipants.length + 1),
-);
-
-      formData.append(
-        "participants",
-        JSON.stringify(
-          filledParticipants.map((item) => ({
-            userId: item.userId,
-            name: item.name,
-            rut: item.rut,
-            compliesRest: item.compliesRest,
-          })),
-        ),
-      );
-
-      formData.append("reporterSignature", signatureFile);
-
-      const response = await fetch(`${API_URL}/safety-talks`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Error guardando reunión");
-      }
-
-      await response.json();
-      setSuccessModalOpen(true);
-    } catch (error) {
-      console.error(error);
-      alert("Error guardando reunión de seguridad");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const controlMeasures = Array.from({ length: 12 }, (_, index) => ({
-    key: `controlMeasure${index + 1}`,
-    number: index + 1,
-  }));
+  const technicianSuggestions = getTechnicianSuggestions();
 
   return (
-    <div className="safety-talk-page">
-      <div className="safety-talk-header">
+    <div className="harness-page">
+      <div className="harness-header">
         <div>
-          <h1>Reunión Previa de Seguridad en el Trabajo</h1>
-          <p>Formulario digital según formato Insprotel</p>
+          <h1>Check List Arnés</h1>
+          <p>Inspección de arnés de seguridad y línea de vida.</p>
         </div>
 
-        <div className="safety-header-actions">
-          <button
-            type="button"
-            className="history-btn"
-            onClick={() => navigate("/charlas/historial")}
-          >
-            <History size={18} />
-            Ver Historial
-          </button>
-
-          <div className="safety-icon">
-            <ShieldCheck size={34} />
-          </div>
-        </div>
+        <button
+          className="harness-history-btn"
+          type="button"
+          onClick={() => navigate("/arnes/historial")}
+        >
+          <History size={18} />
+          Ver Historial
+        </button>
       </div>
 
-      <form className="safety-form" onSubmit={handleSubmit}>
-        <div className="safety-card">
-          <div className="card-title">
-            <FileText size={18} />
-            Encabezado
+      <form className="harness-form" onSubmit={handleSubmit}>
+        <div className="harness-card">
+          <div className="harness-card-title">
+            <ShieldCheck size={20} />
+            Información General
           </div>
 
-          <div className="grid-2">
+          <div className="harness-grid">
             <div className="field">
-              <label>Área, lugar, instalación</label>
+              <label>Vencimiento</label>
               <input
-                type="text"
-                value={form.areaLocationInstallation}
+                type="date"
+                value={form.expirationDate}
                 onChange={(e) =>
-                  updateField("areaLocationInstallation", e.target.value)
+                  updateField("expirationDate", e.target.value)
                 }
               />
             </div>
 
             <div className="field">
-              <label>Orden de trabajo / Proyecto</label>
+              <label>Aprobado</label>
               <input
                 type="text"
-                value={form.workOrderProject}
-                onChange={(e) =>
-                  updateField("workOrderProject", e.target.value)
-                }
+                value={automaticStatus === "APROBADO" ? "APROBADO" : ""}
+                readOnly
+                placeholder="Se completa automáticamente"
               />
             </div>
 
             <div className="field">
-              <label>N° Permiso de Faena / Actividad</label>
+              <label>Rechazado</label>
               <input
                 type="text"
-                value={form.workPermitActivity}
-                onChange={(e) =>
-                  updateField("workPermitActivity", e.target.value)
-                }
+                value={automaticStatus === "RECHAZADO" ? "RECHAZADO" : ""}
+                readOnly
+                placeholder="Se completa automáticamente"
               />
             </div>
-          </div>
 
-          <div className="field">
-            <label>Se realizarán trabajos de</label>
-            <textarea
-              rows={4}
-              value={form.worksToDo}
-              onChange={(e) => updateField("worksToDo", e.target.value)}
-              placeholder="- Retiro de acometidas&#10;- Reposición de suministro eléctrico"
-            />
-          </div>
+            <div className="field">
+              <label>Contrato</label>
+              <input
+                type="text"
+                value={form.contract}
+                onChange={(e) => updateField("contract", e.target.value)}
+              />
+            </div>
 
-        </div>
+            <div className="field technician-search-field">
+              <label>Técnico</label>
 
-        <div className="safety-card">
-          <div className="card-title">
-            <ShieldCheck size={18} />
-            Evaluación de riesgos
-          </div>
-
-          <div className="field">
-            <label>Tipo de trabajos</label>
-            <textarea
-              rows={5}
-              value={form.workTypes}
-              onChange={(e) => updateField("workTypes", e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <label>Riesgos previstos más significativos</label>
-            <textarea
-              rows={5}
-              value={form.significantRisks}
-              onChange={(e) => updateField("significantRisks", e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <label>Accidente e incidente analizado</label>
-            <textarea
-              rows={4}
-              value={form.analyzedAccident}
-              onChange={(e) => updateField("analyzedAccident", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="safety-card">
-          <div className="card-title">
-            <Check size={18} />
-            Medidas de control
-          </div>
-
-          <div className="grid-2">
-            {controlMeasures.map((item) => (
-              <div className="field" key={item.key}>
-                <label>{item.number}.- Medida de control</label>
+              <div className="participant-search-wrap">
                 <input
                   type="text"
-                  value={form[item.key]}
-                  onChange={(e) => updateField(item.key, e.target.value)}
+                  value={technicianSearch}
+                  placeholder="Escriba nombre del técnico"
+                  autoComplete="off"
+                  onChange={(e) => handleTechnicianSearch(e.target.value)}
+                  onFocus={() => setTechnicianSearching(true)}
+                  onBlur={() => {
+                    setTimeout(() => setTechnicianSearching(false), 150);
+                  }}
                 />
-              </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="safety-card">
-          <div className="card-title">
-            <Users size={18} />
-            Listado e información trabajadores
-          </div>
+                {form.technicianName && (
+                  <button
+                    type="button"
+                    className="participant-clear-button"
+                    onClick={clearTechnician}
+                  >
+                    Limpiar
+                  </button>
+                )}
 
-          <div className="participants-list">
-            {participants.map((participant, index) => {
-              const suggestions = getWorkerSuggestions(participant);
-
-              return (
-                <div key={index} className="participant-card">
-                  <div className="participant-header">
-                    <h3>Participante {index + 1}</h3>
-
-                    {participants.length > 1 && (
+                {technicianSearching && technicianSuggestions.length > 0 && (
+                  <div className="participant-suggestions">
+                    {technicianSuggestions.map((worker) => (
                       <button
                         type="button"
-                        className="delete-btn"
-                        onClick={() => removeParticipant(index)}
+                        key={worker.id}
+                        className="participant-suggestion-item"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectTechnician(worker)}
                       >
-                        <Trash2 size={16} />
+                        {worker.name}
                       </button>
-                    )}
+                    ))}
                   </div>
-
-                  <div className="grid-3">
-                    <div className="participant-search-wrap">
-                      <input
-                        type="text"
-                        placeholder="Escriba nombre del trabajador"
-                        value={participant.search}
-                        onChange={(e) =>
-                          handleParticipantSearch(index, e.target.value)
-                        }
-                        onFocus={() =>
-                          updateParticipant(index, "isSearching", true)
-                        }
-                      />
-
-                      {participant.userId && (
-                        <button
-                          type="button"
-                          className="participant-clear-button"
-                          onClick={() => clearParticipant(index)}
-                        >
-                          Limpiar
-                        </button>
-                      )}
-
-                      {participant.isSearching && suggestions.length > 0 && (
-                        <div className="participant-suggestions">
-                          {suggestions.map((worker) => (
-                            <button
-                              type="button"
-                              key={worker.id}
-                              className="participant-suggestion-item"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => selectWorker(index, worker)}
-                            >
-                              {worker.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <input
-                      type="text"
-                      placeholder="RUT"
-                      value={participant.rut}
-                      readOnly
-                    />
-
-                    <select
-                      value={participant.compliesRest ? "SI" : "NO"}
-                      onChange={(e) =>
-                        updateParticipant(
-                          index,
-                          "compliesRest",
-                          e.target.value === "SI",
-                        )
-                      }
-                    >
-                      <option value="SI">Cumple descanso: Sí</option>
-                      <option value="NO">Cumple descanso: No</option>
-                    </select>
-                  </div>
-
-                  {participant.name && (
-                    <p className="participant-selected-name">
-                      Seleccionado: <strong>{participant.name}</strong>
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <button type="button" className="add-btn" onClick={addParticipant}>
-            <Plus size={16} />
-            Agregar participante
-          </button>
-        </div>
-
-        <div className="safety-card">
-          <div className="card-title">
-            <PenLine size={18} />
-            Firma de quien realiza la reunión
-          </div>
-
-          <div
-            className={`signature-box ${
-              signatureLocked ? "signature-box-locked" : ""
-            }`}
-          >
-            <canvas
-              ref={canvasRef}
-              className="signature-canvas"
-              onMouseDown={startSignature}
-              onMouseMove={drawSignature}
-              onMouseUp={stopSignature}
-              onMouseLeave={stopSignature}
-              onTouchStart={startSignature}
-              onTouchMove={drawSignature}
-              onTouchEnd={stopSignature}
-            />
-
-            <div className="signature-actions">
-              <button
-                type="button"
-                className="signature-lock-button"
-                onClick={() => {
-  const canvas = canvasRef.current;
-
-  if (!signatureLocked && canvas) {
-    setSignatureDataUrl(canvas.toDataURL("image/png"));
-  }
-
-  setSignatureLocked((prev) => !prev);
-}}
-                disabled={!hasSignature}
-              >
-                {signatureLocked ? <Unlock size={16} /> : <Lock size={16} />}
-                {signatureLocked ? "Desbloquear firma" : "Bloquear firma"}
-              </button>
-
-              <button
-                type="button"
-                className="signature-clear-button"
-                onClick={clearSignature}
-              >
-                <RotateCcw size={16} />
-                Limpiar firma
-              </button>
+                )}
+              </div>
             </div>
 
-            {signatureLocked && (
-              <div className="signature-status">Firma bloqueada ✅</div>
-            )}
+            <div className="field">
+              <label>Móvil</label>
+              <input
+                type="text"
+                value={form.mobile}
+                onChange={(e) => updateField("mobile", e.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label>Supervisor / Inspector</label>
+              <input
+                type="text"
+                value={form.supervisorInspectorName}
+                onChange={(e) =>
+                  updateField("supervisorInspectorName", e.target.value)
+                }
+              />
+            </div>
+
+            <div className="field">
+              <label>Zona</label>
+              <input
+                type="text"
+                value={form.zone}
+                onChange={(e) => updateField("zone", e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
-        <button type="submit" className="submit-btn" disabled={loading}>
-          {loading ? "Guardando..." : "Guardar reunión"}
+        <div className="harness-card">
+          <div className="harness-card-title">
+            <AlertTriangle size={20} />
+            Inspección del Arnés
+          </div>
+
+          <div className="harness-check-table-card">
+            <div className="harness-check-table-title">
+              <ClipboardList size={18} />
+              <h3>Chequeo General</h3>
+            </div>
+
+            <div className="harness-check-table-scroll">
+              <table className="harness-check-table">
+                <thead>
+                  <tr>
+                    <th>N°</th>
+                    <th>Elemento a revisar</th>
+                    <th>SI</th>
+                    <th>NO</th>
+                    <th>NO APLICA</th>
+                    <th>Observación</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr key={item.description}>
+                      <td>{index + 1}</td>
+
+                      <td>{item.description}</td>
+
+                      <td>
+                        <input
+                          type="radio"
+                          name={`status-${index}`}
+                          checked={item.status === "SI"}
+                          onChange={() => updateItem(index, "status", "SI")}
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="radio"
+                          name={`status-${index}`}
+                          checked={item.status === "NO"}
+                          onChange={() => updateItem(index, "status", "NO")}
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="radio"
+                          name={`status-${index}`}
+                          checked={item.status === "NO_APLICA"}
+                          onChange={() =>
+                            updateItem(index, "status", "NO_APLICA")
+                          }
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="text"
+                          placeholder="Ingrese observación"
+                          value={item.observation}
+                          onChange={(e) =>
+                            updateItem(index, "observation", e.target.value)
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="harness-card">
+          <div className="harness-card-title">
+            <AlertTriangle size={20} />
+            Observaciones Generales
+          </div>
+
+          <div className="field">
+            <textarea
+              rows={6}
+              value={form.generalObservation}
+              onChange={(e) =>
+                updateField("generalObservation", e.target.value)
+              }
+              placeholder="Ingrese observaciones generales..."
+            />
+          </div>
+        </div>
+
+        <div className="harness-card">
+          <div
+            className={`vehicle-client-signature ${
+              hasSupervisorSignature ? "signed" : ""
+            }`}
+          >
+            <div className="vehicle-client-signature-header">
+              <div>
+                <div className="vehicle-client-signature-title">
+                  <PenLine size={22} />
+                  Firma del Responsable
+                </div>
+
+                <h4>
+                  Firma de{" "}
+                  {form.supervisorInspectorName || "Supervisor / Inspector"}
+                  <span> (Supervisor / Inspector)</span>
+                </h4>
+
+                <p>
+                  {signatureEnabled
+                    ? "🔓 Firma habilitada"
+                    : "🔒 Firma bloqueada (habilita antes de firmar)"}
+                </p>
+              </div>
+
+              <div className="vehicle-client-signature-actions">
+                <button
+                  type="button"
+                  className="vehicle-enable-signature-button"
+                  onClick={() => setSignatureEnabled((prev) => !prev)}
+                >
+                  <PenLine size={18} />
+                  {signatureEnabled ? "Bloquear firma" : "Habilitar firma"}
+                </button>
+
+                <button
+                  type="button"
+                  className="vehicle-clear-signature-button"
+                  onClick={clearSignature}
+                  disabled={!hasSupervisorSignature}
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+
+            <div className="vehicle-signature-pad">
+              {!signatureEnabled && (
+                <div className="vehicle-signature-placeholder">
+                  <div>🔒</div>
+                  <strong>Firma deshabilitada</strong>
+                  <span>
+                    Toca aquí para habilitar y que el supervisor firme
+                  </span>
+                </div>
+              )}
+
+              <canvas
+                ref={supervisorCanvasRef}
+                className="signature-canvas"
+                onMouseDown={signatureEnabled ? startSignature : undefined}
+                onMouseMove={signatureEnabled ? drawSignature : undefined}
+                onMouseUp={signatureEnabled ? stopSignature : undefined}
+                onMouseLeave={signatureEnabled ? stopSignature : undefined}
+                onTouchStart={signatureEnabled ? startSignature : undefined}
+                onTouchMove={signatureEnabled ? drawSignature : undefined}
+                onTouchEnd={signatureEnabled ? stopSignature : undefined}
+              />
+            </div>
+
+            <p className="vehicle-signature-help">
+              Habilita la firma y solicita al supervisor que firme dentro del
+              recuadro. Luego presiona guardar.
+            </p>
+
+            <div className="vehicle-signature-status">
+              Estado firma:{" "}
+              {hasSupervisorSignature ? (
+                <span className="ok">✅ Firma registrada</span>
+              ) : (
+                <span className="bad">❌ Falta firma</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" className="harness-submit-btn" disabled={loading}>
+          <Save size={18} />
+          {loading ? "Guardando..." : "Guardar Check List"}
         </button>
       </form>
 
@@ -893,8 +745,9 @@ function getCanvasPoint(event, canvas) {
               <Check size={36} />
             </div>
 
-            <h3>Reunión guardada</h3>
-            <p>La reunión previa de seguridad fue registrada correctamente.</p>
+            <h3>Check list guardado</h3>
+
+            <p>El check list de arnés fue registrado exitosamente.</p>
 
             <button
               type="button"
@@ -911,4 +764,4 @@ function getCanvasPoint(event, canvas) {
   );
 }
 
-export default SafetyTalks;
+export default HarnessCheck;

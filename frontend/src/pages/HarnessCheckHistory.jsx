@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import {
   AlertTriangle,
-  ArrowLeft,
   Calendar,
   Eye,
   FileDown,
@@ -64,11 +63,11 @@ function formatStatus(value) {
 
 function HarnessCheckHistory() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const user = useMemo(() => getUser(), []);
-  const isSuperadmin = String(user?.role || "").toUpperCase() === "SUPERADMIN";
-  const isAllHistory = location.pathname.includes("historial-todos");
+  const role = String(user?.role || "").toUpperCase();
+  const isTechnician = role === "TECNICO";
+  const canDelete = role === "SUPERADMIN";
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,16 +79,12 @@ function HarnessCheckHistory() {
     try {
       setLoading(true);
 
-      const endpoint = isAllHistory
-        ? `${API_URL}/harness-check/all`
-        : `${API_URL}/harness-check`;
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_URL}/harness-check/finished`, {
         headers: authHeaders(),
       });
 
       if (!response.ok) {
-        throw new Error("Error cargando historial");
+        throw new Error("Error cargando check list terminados");
       }
 
       const data = await response.json();
@@ -97,7 +92,7 @@ function HarnessCheckHistory() {
       setRecords(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
-      alert("Error cargando historial");
+      alert("Error cargando check list de arnés terminados");
       setRecords([]);
     } finally {
       setLoading(false);
@@ -170,74 +165,31 @@ function HarnessCheckHistory() {
   }
 
   useEffect(() => {
-    if (isAllHistory && !isSuperadmin) {
-      alert("No tienes permiso para ver todos los check list de arnés");
-      navigate("/arnes/historial");
-      return;
-    }
-
     loadRecords();
-  }, [isAllHistory]);
+  }, []);
 
   return (
     <div className="history-page">
       <div className="history-header history-header-actions">
         <div>
-          <h2>
-            {isAllHistory
-              ? "Historial General Check List Arnés"
-              : "Mis Check List Arnés"}
-          </h2>
+          <h2>Check List Arnés Terminados</h2>
 
           <p>
-            {isAllHistory
-              ? "Todos los registros de arnés guardados por los usuarios."
-              : "Registros guardados de tus inspecciones de arnés."}
+            {isTechnician
+              ? "Aquí verás solo los check list de arnés que tú firmaste."
+              : "Aquí verás todos los check list de arnés firmados por técnico y supervisor."}
           </p>
-        </div>
-
-        <div className="history-header-buttons">
-          {isSuperadmin && !isAllHistory && (
-            <button
-              type="button"
-              className="history-back-button"
-              onClick={() => navigate("/arnes/historial-todos")}
-            >
-              <FileText size={18} />
-              Ver Todos
-            </button>
-          )}
-
-          {isAllHistory && (
-            <button
-              type="button"
-              className="history-back-button"
-              onClick={() => navigate("/arnes/historial")}
-            >
-              <User size={18} />
-              Ver Mis Check List
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="history-back-button"
-            onClick={() => navigate("/arnes")}
-          >
-            <ArrowLeft size={18} />
-            Volver al Formulario
-          </button>
         </div>
       </div>
 
       <div className="history-card">
         {loading ? (
-          <p>Cargando historial...</p>
+          <p>Cargando terminados...</p>
         ) : records.length === 0 ? (
           <div className="history-empty">
             <FileText size={42} />
-            <h3>No hay registros</h3>
-            <p>Los check list de arnés guardados aparecerán aquí.</p>
+            <h3>No hay check list terminados</h3>
+            <p>Los check list de arnés firmados aparecerán aquí.</p>
           </div>
         ) : (
           <div className="history-list">
@@ -258,7 +210,7 @@ function HarnessCheckHistory() {
 
                     <span>
                       <User size={15} />
-                      {record.technicianName || "Sin técnico"}
+                      Técnico: {record.technicianName || "Sin técnico"}
                     </span>
 
                     <span>
@@ -266,7 +218,7 @@ function HarnessCheckHistory() {
                       {formatStatus(record.status)}
                     </span>
 
-                    {isAllHistory && (
+                    {!isTechnician && (
                       <span>
                         <User size={15} />
                         Creado por: {record.user?.name || "Usuario"}
@@ -294,7 +246,7 @@ function HarnessCheckHistory() {
                     Vista previa PDF
                   </button>
 
-                  {(isSuperadmin || !isAllHistory) && (
+                  {canDelete && (
                     <button
                       className="history-delete-button"
                       onClick={() => askDeleteRecord(record)}
@@ -355,9 +307,7 @@ function HarnessCheckHistory() {
 
               <div>
                 <span>Supervisor / Inspector</span>
-                <strong>
-                  {selectedRecord.supervisorInspectorName || "—"}
-                </strong>
+                <strong>{selectedRecord.supervisorInspectorName || "—"}</strong>
               </div>
 
               <div>
@@ -365,7 +315,7 @@ function HarnessCheckHistory() {
                 <strong>{selectedRecord.zone || "—"}</strong>
               </div>
 
-              {isAllHistory && (
+              {!isTechnician && (
                 <div>
                   <span>Creado por</span>
                   <strong>{selectedRecord.user?.name || "Usuario"}</strong>
@@ -421,7 +371,7 @@ function HarnessCheckHistory() {
                 Vista previa PDF
               </button>
 
-              {(isSuperadmin || !isAllHistory) && (
+              {canDelete && (
                 <button
                   type="button"
                   className="history-delete-button detail-delete-button"
