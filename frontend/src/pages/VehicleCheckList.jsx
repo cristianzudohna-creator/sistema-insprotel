@@ -590,9 +590,15 @@ setSignatureEnabled(true);
       formData.append("vehicleModel", form.vehicleModel);
       formData.append("padron", form.padron);
 
-      formData.append("driverName", form.driverName || loggedUserName);
-      formData.append("supervisorName", form.supervisorName);
-      formData.append("supervisorUserId", String(form.supervisorUserId || ""));
+      if (loggedRole === "SUPERVISOR" || loggedRole === "PREVENCION") {
+  formData.append("driverName", form.supervisorName);
+  formData.append("driverUserId", String(form.supervisorUserId || ""));
+  formData.append("supervisorName", loggedUserName);
+} else {
+  formData.append("driverName", form.driverName || loggedUserName);
+  formData.append("supervisorName", form.supervisorName);
+  formData.append("supervisorUserId", String(form.supervisorUserId || ""));
+}
       formData.append("status", automaticStatus);
 
       formData.append("technicalReview", form.technicalReview);
