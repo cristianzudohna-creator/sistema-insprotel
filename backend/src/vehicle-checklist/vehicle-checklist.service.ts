@@ -567,22 +567,22 @@ export class VehicleChecklistService {
     const role = this.role(user);
 
     const where: any = {
-      status: "PENDIENTE_FIRMAS",
-      createdByRole: "CONDUCTOR",
-      supervisorUserId: user.id,
-    };
+  status: "PENDIENTE_FIRMAS",
+};
 
     if (role === "SUPERVISOR") {
-      where.supervisorSignatureUrl = null;
-    }
+  where.supervisorUserId = user.id;
+  where.supervisorSignatureUrl = null;
+}
 
-    if (role === "PREVENCION") {
-      where.preventionSignatureUrl = null;
-    }
+if (role === "PREVENCION") {
+  where.supervisorUserId = user.id;
+  where.preventionSignatureUrl = null;
+}
 
-    if (role === "SUPERADMIN") {
-      where.superadminSignatureUrl = null;
-    }
+if (role === "SUPERADMIN") {
+  where.superadminSignatureUrl = null;
+}
 
     return this.prisma.vehicleCheckList.findMany({
       where,
