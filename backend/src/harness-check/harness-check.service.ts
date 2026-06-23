@@ -194,7 +194,7 @@ if (!this.isSuperadmin(user) && !isOwner && !isAssignedTechnician && !isReviewer
       contract: data.contract || null,
       technicianName: data.technicianName || user.name || null,
       mobile: data.mobile || null,
-      supervisorInspectorName: data.supervisorInspectorName || null,
+      supervisorInspectorName: user.name,
       zone: data.zone || null,
 
       technicianSignatureUrl: technicianSignature

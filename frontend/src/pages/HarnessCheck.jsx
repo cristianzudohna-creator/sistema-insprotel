@@ -156,14 +156,13 @@ function HarnessCheck() {
   const [signatureEnabled, setSignatureEnabled] = useState(false);
 
   const [form, setForm] = useState({
-    expirationDate: "",
-    contract: "",
-    technicianName: "",
-    mobile: "",
-    supervisorInspectorName: "",
-    zone: "",
-    generalObservation: "",
-  });
+  expirationDate: "",
+  contract: "",
+  technicianName: "",
+  mobile: "",
+  zone: "",
+  generalObservation: "",
+});
 
   const [items, setItems] = useState(buildInitialItems());
 
@@ -357,7 +356,6 @@ const height = 170;
       contract: "",
       technicianName: "",
       mobile: "",
-      supervisorInspectorName: "",
       zone: "",
       generalObservation: "",
     });
@@ -375,11 +373,6 @@ const height = 170;
     try {
       if (!form.technicianName.trim()) {
         alert("Debes seleccionar o ingresar el nombre del técnico.");
-        return;
-      }
-
-      if (!form.supervisorInspectorName.trim()) {
-        alert("Debes ingresar el nombre del supervisor / inspector.");
         return;
       }
 
@@ -406,7 +399,6 @@ const supervisorFile = dataUrlToFile(
       formData.append("contract", form.contract);
       formData.append("technicianName", form.technicianName);
       formData.append("mobile", form.mobile);
-      formData.append("supervisorInspectorName", form.supervisorInspectorName);
       formData.append("zone", form.zone);
       formData.append("generalObservation", form.generalObservation);
 
@@ -565,17 +557,6 @@ const supervisorFile = dataUrlToFile(
             </div>
 
             <div className="field">
-              <label>Supervisor / Inspector</label>
-              <input
-                type="text"
-                value={form.supervisorInspectorName}
-                onChange={(e) =>
-                  updateField("supervisorInspectorName", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="field">
               <label>Zona</label>
               <input
                 type="text"
@@ -697,10 +678,8 @@ const supervisorFile = dataUrlToFile(
                 </div>
 
                 <h4>
-                  Firma de{" "}
-                  {form.supervisorInspectorName || "Supervisor / Inspector"}
-                  <span> (Supervisor / Inspector)</span>
-                </h4>
+  Firma Supervisor / Inspector
+</h4>
 
                 <p>
                   {signatureEnabled
