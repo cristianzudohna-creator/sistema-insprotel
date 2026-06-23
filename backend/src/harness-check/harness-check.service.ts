@@ -91,21 +91,20 @@ private isTechnician(user: any) {
 private async notifyPendingHarnessSignature(check: any) {
   const technicianName = String(check?.technicianName || "").trim();
 
-  if (!technicianName) {
-    return;
-  }
+  if (!technicianName) return;
 
   const technician = await this.prisma.user.findFirst({
     where: {
       isActive: true,
       role: "TECNICO",
-      name: technicianName,
+      name: {
+        equals: technicianName,
+        mode: "insensitive",
+      },
     },
   });
 
-  if (!technician) {
-    return;
-  }
+  if (!technician) return;
 
   await this.notificationsService.create(
     technician.id,
