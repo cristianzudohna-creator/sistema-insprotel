@@ -40,6 +40,34 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString("es-CL");
 }
 
+function formatDateTime(value) {
+  if (!value) return "Sin fecha";
+
+  return new Date(value).toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatStatus(status) {
+  if (status === "PENDIENTE_FIRMAS") {
+    return "Pendiente de firma";
+  }
+
+  if (status === "COMPLETADO") {
+    return "Completado";
+  }
+
+  if (status === "OBSERVADO") {
+    return "Observado";
+  }
+
+  return "Pendiente";
+}
+
 function text(value, fallback = "—") {
   if (value === null || value === undefined || value === "") return fallback;
   return String(value);
@@ -351,7 +379,7 @@ function VehicleCheckPendingSignatures() {
                   <div className="history-meta">
                     <span>
                       <Calendar size={15} />
-                      {formatDate(check.date)}
+{formatDateTime(check.createdAt)}
                     </span>
 
                     <span>
@@ -361,7 +389,7 @@ function VehicleCheckPendingSignatures() {
 
                     <span>
                       <CheckCircle2 size={15} />
-                      Estado: {check.status || "PENDIENTE"}
+Estado: {formatStatus(check.status)}
                     </span>
                   </div>
                 </div>
@@ -408,13 +436,13 @@ function VehicleCheckPendingSignatures() {
               </div>
 
               <div>
-                <span>Fecha</span>
-                <strong>{formatDate(selectedCheck.date)}</strong>
+                <span>Fecha y Hora de Creación</span>
+<strong>{formatDateTime(selectedCheck.createdAt)}</strong>
               </div>
 
               <div>
                 <span>Estado</span>
-                <strong>{text(selectedCheck.status)}</strong>
+<strong>{formatStatus(selectedCheck.status)}</strong>
               </div>
 
               <div>

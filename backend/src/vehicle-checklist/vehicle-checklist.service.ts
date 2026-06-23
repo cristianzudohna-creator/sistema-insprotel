@@ -346,23 +346,23 @@ export class VehicleChecklistService {
 
     let selectedReviewer: any = null;
 
-    if (selectedReviewerId) {
-      selectedReviewer = await this.prisma.user.findFirst({
-        where: {
-          id: selectedReviewerId,
-          isActive: true,
-          role: {
-            in: ["SUPERVISOR", "PREVENCION"],
-          },
-        },
-      });
+    if (isCreatedByDriver && selectedReviewerId) {
+  selectedReviewer = await this.prisma.user.findFirst({
+    where: {
+      id: selectedReviewerId,
+      isActive: true,
+      role: {
+        in: ["SUPERVISOR", "PREVENCION"],
+      },
+    },
+  });
 
-      if (!selectedReviewer) {
-        throw new ForbiddenException(
-          "Debes seleccionar un supervisor o prevención válido",
-        );
-      }
-    }
+  if (!selectedReviewer) {
+    throw new ForbiddenException(
+      "Debes seleccionar un supervisor o prevención válido",
+    );
+  }
+}
 
     if (isCreatedByDriver && !selectedReviewerId) {
       throw new ForbiddenException(
@@ -1018,7 +1018,19 @@ if (role === "SUPERADMIN") {
 
     const infoRows = [
       ["Check List N°", this.text(checklist.folio)],
-      ["Fecha", this.formatDate(checklist.date)],
+      [
+  "Fecha",
+  checklist.completedAt
+  ? new Date(checklist.completedAt).toLocaleString("es-CL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+  : this.formatDate(checklist.date),
+],
       ["Patente", this.text(checklist.patent)],
       ["Kilometraje", this.text(checklist.mileage)],
       ["Tipo de Vehículo", this.text(checklist.vehicleType)],

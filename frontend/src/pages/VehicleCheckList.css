@@ -1056,3 +1056,9 @@ textarea {
 .signature-separator {
   height: 28px;
 }
+.general-upload-section {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}

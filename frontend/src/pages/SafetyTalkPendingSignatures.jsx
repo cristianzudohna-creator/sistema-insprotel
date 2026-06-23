@@ -34,6 +34,19 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString("es-CL");
 }
 
+function formatDateTime(value) {
+  if (!value) return "Sin fecha";
+
+  return new Date(value).toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 function text(value, fallback = "—") {
   if (value === null || value === undefined || value === "") return fallback;
   return String(value);
@@ -335,7 +348,7 @@ function SafetyTalkPendingSignatures() {
                   <div className="history-meta">
                     <span>
                       <Calendar size={15} />
-                      {formatDate(talk.date)}
+{formatDateTime(talk.createdAt || talk.date)}
                     </span>
 
                     <span>
@@ -387,7 +400,9 @@ function SafetyTalkPendingSignatures() {
             <div className="detail-grid">
               <div>
                 <span>Fecha</span>
-                <strong>{formatDate(selectedTalk.date)}</strong>
+                <strong>
+  {formatDateTime(selectedTalk.createdAt || selectedTalk.date)}
+</strong>
               </div>
 
               <div>

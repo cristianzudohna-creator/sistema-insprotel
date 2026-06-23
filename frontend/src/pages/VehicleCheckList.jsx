@@ -243,6 +243,8 @@ function VehicleCheckList() {
 
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
+  const cameraInputRef = useRef(null);
+const galleryInputRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
@@ -590,7 +592,11 @@ setSignatureEnabled(true);
       formData.append("vehicleModel", form.vehicleModel);
       formData.append("padron", form.padron);
 
-      if (loggedRole === "SUPERVISOR" || loggedRole === "PREVENCION") {
+      if (
+  loggedRole === "SUPERVISOR" ||
+  loggedRole === "PREVENCION" ||
+  loggedRole === "SUPERADMIN"
+) {
   formData.append("driverName", form.supervisorName);
   formData.append("driverUserId", String(form.supervisorUserId || ""));
   formData.append("supervisorName", loggedUserName);
@@ -1012,18 +1018,43 @@ setSignatureEnabled(true);
         />
 
         <div className="general-upload-section">
-          <label className="general-photo-upload">
-            <ImageIcon size={18} />
-            Subir Fotos del Desperfecto ({generalPhotos.length}/
-            {MAX_GENERAL_PHOTOS})
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => handleGeneralPhotos(e.target.files)}
-            />
-          </label>
-        </div>
+
+  <input
+    ref={cameraInputRef}
+    type="file"
+    accept="image/*"
+    capture="environment"
+    multiple
+    style={{ display: "none" }}
+    onChange={(e) => handleGeneralPhotos(e.target.files)}
+  />
+
+  <input
+    ref={galleryInputRef}
+    type="file"
+    accept="image/*"
+    multiple
+    style={{ display: "none" }}
+    onChange={(e) => handleGeneralPhotos(e.target.files)}
+  />
+
+  <button
+    type="button"
+    className="general-photo-upload"
+    onClick={() => cameraInputRef.current?.click()}
+  >
+    📷 Tomar Foto ({generalPhotos.length}/{MAX_GENERAL_PHOTOS})
+  </button>
+
+  <button
+    type="button"
+    className="general-photo-upload"
+    onClick={() => galleryInputRef.current?.click()}
+  >
+    🖼️ Elegir desde Galería
+  </button>
+
+</div>
 
         {generalPhotos.length > 0 && (
           <div className="general-photos-grid">

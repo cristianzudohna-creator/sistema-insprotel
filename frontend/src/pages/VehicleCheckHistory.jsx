@@ -58,6 +58,19 @@ function formatDate(value) {
   return `${day}-${month}-${year}`;
 }
 
+function formatDateTime(value) {
+  if (!value) return "Sin fecha";
+
+  return new Date(value).toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 function statusLabel(status) {
   if (status === "COMPLETADO") return "Completado";
   if (status === "PENDIENTE_FIRMAS") return "Pendiente firmas";
@@ -303,7 +316,7 @@ Mis Check List
                   <div className="history-meta">
                     <span>
                       <Calendar size={15} />
-                      {formatDate(record.date)}
+{formatDateTime(record.completedAt || record.createdAt)}
                     </span>
 
                     <span>
@@ -385,8 +398,12 @@ Mis Check List
 
             <div className="detail-grid">
               <div>
-                <span>Fecha</span>
-                <strong>{formatDate(selectedRecord.date)}</strong>
+                <span>Fecha y Hora</span>
+<strong>
+  {formatDateTime(
+    selectedRecord.completedAt || selectedRecord.createdAt
+  )}
+</strong>
               </div>
 
               <div>
