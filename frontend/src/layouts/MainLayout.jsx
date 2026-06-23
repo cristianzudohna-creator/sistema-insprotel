@@ -46,6 +46,15 @@ function MainLayout({ children }) {
   const role = String(user?.role || "").toUpperCase();
 
   const isSuperadmin = role === "SUPERADMIN";
+  const canSeeAllVehicleChecks =
+  role === "SUPERADMIN" ||
+  role === "SUPERVISOR" ||
+  role === "PREVENCION";
+
+const canSeeAllHarnessChecks =
+  role === "SUPERADMIN" ||
+  role === "SUPERVISOR" ||
+  role === "PREVENCION";
 
   const canUseVehicleCheck =
     role === "SUPERADMIN" ||
@@ -200,24 +209,36 @@ function MainLayout({ children }) {
                 }
               >
                 <FileText size={20} />
-                <span>Check List Vehículos Terminados</span>
+                <span>Mis Check List Vehículos</span>
               </NavLink>
             </>
           )}
 
-          {canCreateHarnessCheck && (
-            <NavLink
-              to="/arnes"
-              onClick={closeMenu}
-              className={({ isActive }) =>
-                isActive ? "menu-item active-link" : "menu-item"
-              }
-            >
-              <Shield size={20} />
-              <span>Check List Arnés</span>
-            </NavLink>
-          )}
+          {canSeeAllVehicleChecks && (
+  <NavLink
+    to="/check-vehiculos/historial-todos"
+    onClick={closeMenu}
+    className={({ isActive }) =>
+      isActive ? "menu-item active-link" : "menu-item"
+    }
+  >
+    <FileText size={20} />
+    <span>Todos los Check List Vehículos</span>
+  </NavLink>
+)}
 
+{canCreateHarnessCheck && (
+  <NavLink
+    to="/arnes"
+    onClick={closeMenu}
+    className={({ isActive }) =>
+      isActive ? "menu-item active-link" : "menu-item"
+    }
+  >
+    <Shield size={20} />
+    <span>Check List Arnés</span>
+  </NavLink>
+)}
           {canSignHarnessCheck && (
             <NavLink
               to="/arnes/pendientes-firma"
@@ -240,9 +261,24 @@ function MainLayout({ children }) {
               }
             >
               <FileText size={20} />
-              <span>Check List Arnés Terminados</span>
+              <span>Mis Check List Arnés</span>
             </NavLink>
+
+            
           )}
+
+          {canSeeAllHarnessChecks && (
+  <NavLink
+    to="/arnes/historial-todos"
+    onClick={closeMenu}
+    className={({ isActive }) =>
+      isActive ? "menu-item active-link" : "menu-item"
+    }
+  >
+    <FileText size={20} />
+    <span>Todos los Check List Arnés</span>
+  </NavLink>
+)}
 
           {isSuperadmin && (
             <>

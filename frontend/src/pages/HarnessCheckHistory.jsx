@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   AlertTriangle,
@@ -63,11 +63,17 @@ function formatStatus(value) {
 
 function HarnessCheckHistory() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const user = useMemo(() => getUser(), []);
   const role = String(user?.role || "").toUpperCase();
   const isTechnician = role === "TECNICO";
   const canDelete = role === "SUPERADMIN";
+
+  const canSeeAllHistory =
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
+
+  const isAllHistory = location.pathname.includes("historial-todos");
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,9 +85,13 @@ function HarnessCheckHistory() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/harness-check/finished`, {
-        headers: authHeaders(),
-      });
+      const endpoint = isAllHistory
+  ? `${API_URL}/harness-check/all`
+  : `${API_URL}/harness-check/finished`;
+
+const response = await fetch(endpoint, {
+  headers: authHeaders(),
+});
 
       if (!response.ok) {
         throw new Error("Error cargando check list terminados");
@@ -171,16 +181,52 @@ function HarnessCheckHistory() {
   return (
     <div className="history-page">
       <div className="history-header history-header-actions">
-        <div>
-          <h2>Check List Arnés Terminados</h2>
+  <div>
+    <h2>
+      {isAllHistory
+        ? "Todos los Check List Arnés"
+        : "Mis Check List Arnés"}
+    </h2>
 
-          <p>
-            {isTechnician
-              ? "Aquí verás solo los check list de arnés que tú firmaste."
-              : "Aquí verás todos los check list de arnés firmados por técnico y supervisor."}
-          </p>
-        </div>
-      </div>
+    <p>
+      {isAllHistory
+        ? "Todos los registros de check list de arnés."
+        : "Registros de check list de arnés asociados a tu usuario."}
+    </p>
+  </div>
+
+  <div className="history-top-actions">
+    {canSeeAllHistory && !isAllHistory && (
+      <button
+        type="button"
+        className="history-back-button"
+        onClick={() => navigate("/arnes/historial-todos")}
+      >
+        <FileText size={18} />
+        Todos los Check List
+      </button>
+    )}
+
+    {isAllHistory && (
+      <button
+        type="button"
+        className="history-back-button"
+        onClick={() => navigate("/arnes/historial")}
+      >
+        <User size={18} />
+        Mis Check List
+      </button>
+    )}
+
+    <button
+      type="button"
+      className="history-back-button"
+      onClick={() => navigate("/arnes")}
+    >
+      Volver al Formulario
+    </button>
+  </div>
+</div>
 
       <div className="history-card">
         {loading ? (
@@ -188,8 +234,8 @@ function HarnessCheckHistory() {
         ) : records.length === 0 ? (
           <div className="history-empty">
             <FileText size={42} />
-            <h3>No hay check list terminados</h3>
-            <p>Los check list de arnés firmados aparecerán aquí.</p>
+            <h3>No hay registros</h3>
+<p>Los check list de arnés aparecerán aquí.</p>
           </div>
         ) : (
           <div className="history-list">

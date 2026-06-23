@@ -75,8 +75,7 @@ function VehicleCheckHistory() {
 const canSeeAllHistory =
   role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
-const isAllHistory =
-  location.pathname.includes("historial-todos") || canSeeAllHistory;
+const isAllHistory = location.pathname.includes("historial-todos");
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,9 +109,7 @@ const isAllHistory =
     try {
       setLoading(true);
 
-      const endpoint = isAllHistory
-        ? `${API_URL}/vehicle-checklist/all`
-        : `${API_URL}/vehicle-checklist/finished`;
+      const endpoint = `${API_URL}/vehicle-checklist/finished`;
 
       const response = await fetch(endpoint, {
         headers: authHeaders(),
@@ -200,10 +197,10 @@ const isAllHistory =
       <div className="history-header history-header-actions">
         <div>
           <h2>
-            {isAllHistory
-              ? "Historial General Check List Vehículos"
-              : "Check List Vehículos Terminados"}
-          </h2>
+  {isAllHistory
+    ? "Todos los Check List Vehículos"
+    : "Mis Check List Vehículos"}
+</h2>
 
           <p>
             {isAllHistory
@@ -222,14 +219,14 @@ const isAllHistory =
             Pendientes de Firma
           </button>
 
-          {isSuperadmin && !isAllHistory && (
+          {canSeeAllHistory && !isAllHistory && (
             <button
               type="button"
               className="history-back-button"
               onClick={() => navigate("/check-vehiculos/historial-todos")}
             >
               <FileText size={18} />
-              Ver Todos
+Todos los Check List
             </button>
           )}
 
@@ -240,7 +237,7 @@ const isAllHistory =
               onClick={() => navigate("/check-vehiculos/historial")}
             >
               <User size={18} />
-              Ver Terminados
+Mis Check List
             </button>
           )}
 

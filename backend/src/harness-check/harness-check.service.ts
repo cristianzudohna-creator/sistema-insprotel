@@ -252,24 +252,24 @@ if (!this.isSuperadmin(user) && !isOwner && !isAssignedTechnician && !isReviewer
   }
 
   async findAllForSuperadmin(currentUser: any) {
-    const user = await this.getLoggedUser(currentUser);
+  const user = await this.getLoggedUser(currentUser);
 
-    if (!this.isSuperadmin(user)) {
-      throw new ForbiddenException(
-        "Solo SUPERADMIN puede ver todos los check list de arnés",
-      );
-    }
-
-    return this.prisma.harnessCheck.findMany({
-      include: {
-        items: true,
-        user: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+  if (!this.isReviewer(user)) {
+    throw new ForbiddenException(
+      "No tienes permiso para ver todos los check list de arnés",
+    );
   }
+
+  return this.prisma.harnessCheck.findMany({
+    include: {
+      items: true,
+      user: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
 
   async finished(currentUser: any) {
   const user = await this.getLoggedUser(currentUser);
