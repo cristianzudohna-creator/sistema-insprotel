@@ -90,6 +90,11 @@ export class VehicleChecklistController {
       inspectorSignature?: Express.Multer.File[];
     },
   ) {
+    console.log("FILES VEHICLE CHECK:", {
+  photos: files?.photos?.length || 0,
+  driverSignature: files?.driverSignature?.length || 0,
+  inspectorSignature: files?.inspectorSignature?.length || 0,
+});
     return this.vehicleChecklistService.create(
       body,
       files?.photos || [],
