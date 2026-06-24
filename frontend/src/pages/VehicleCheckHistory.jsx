@@ -51,13 +51,6 @@ function authHeaders() {
   };
 }
 
-function formatDate(value) {
-  if (!value) return "Sin fecha";
-
-  const [year, month, day] = String(value).split("T")[0].split("-");
-  return `${day}-${month}-${year}`;
-}
-
 function formatDateTime(value) {
   if (!value) return "Sin fecha";
 
@@ -78,6 +71,10 @@ function statusLabel(status) {
   return "Pendiente";
 }
 
+function safeFileName(value) {
+  return String(value || "sin_dato").replace(/[^a-zA-Z0-9-_]/g, "_");
+}
+
 function VehicleCheckHistory() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,10 +82,11 @@ function VehicleCheckHistory() {
   const user = useMemo(() => getUser(), []);
   const role = String(user?.role || "").toUpperCase();
   const isSuperadmin = role === "SUPERADMIN";
-const canSeeAllHistory =
-  role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
-const isAllHistory = location.pathname.includes("historial-todos");
+  const canSeeAllHistory =
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
+
+  const isAllHistory = location.pathname.includes("historial-todos");
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -102,9 +100,12 @@ const isAllHistory = location.pathname.includes("historial-todos");
     if (!record?.id) return;
 
     try {
-      const response = await fetch(`${API_URL}/vehicle-checklist/${record.id}/pdf`, {
-        headers: authHeaders(),
-      });
+      const response = await fetch(
+        `${API_URL}/vehicle-checklist/${record.id}/pdf`,
+        {
+          headers: authHeaders(),
+        },
+      );
 
       if (!response.ok) throw new Error("No se pudo abrir el PDF");
 
@@ -118,13 +119,46 @@ const isAllHistory = location.pathname.includes("historial-todos");
     }
   }
 
+  async function downloadPdf(record) {
+    if (!record?.id) return;
+
+    try {
+      const response = await fetch(
+        `${API_URL}/vehicle-checklist/${record.id}/pdf`,
+        {
+          headers: authHeaders(),
+        },
+      );
+
+      if (!response.ok) throw new Error("No se pudo descargar el PDF");
+
+      const blob = await response.blob();
+      const fileUrl = URL.createObjectURL(blob);
+
+      const patent = safeFileName(record.patent || "sin_patente");
+      const creator = safeFileName(record.user?.name || record.driverName || "usuario");
+
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = `CHECKLIST_${patent}_${creator}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(fileUrl);
+    } catch (error) {
+      console.error(error);
+      alert("Error descargando PDF ❌");
+    }
+  }
+
   async function loadRecords() {
     try {
       setLoading(true);
 
       const endpoint = isAllHistory
-  ? `${API_URL}/vehicle-checklist/all`
-  : `${API_URL}/vehicle-checklist/finished`;
+        ? `${API_URL}/vehicle-checklist/all`
+        : `${API_URL}/vehicle-checklist/finished`;
 
       const response = await fetch(endpoint, {
         headers: authHeaders(),
@@ -183,18 +217,16 @@ const isAllHistory = location.pathname.includes("historial-todos");
 
   useEffect(() => {
     if (isAllHistory && !canSeeAllHistory) {
-  alert("No tienes permiso para ver todos los check list");
-  navigate("/check-vehiculos/historial");
-  return;
-}
+      alert("No tienes permiso para ver todos los check list");
+      navigate("/check-vehiculos/historial");
+      return;
+    }
 
     loadRecords();
   }, [isAllHistory]);
 
   const filteredRecords = records.filter((record) => {
-    const recordDate = record.date
-      ? String(record.date).split("T")[0]
-      : "";
+    const recordDate = record.date ? String(record.date).split("T")[0] : "";
 
     const matchDate = !searchDate || recordDate === searchDate;
 
@@ -212,15 +244,15 @@ const isAllHistory = location.pathname.includes("historial-todos");
       <div className="history-header history-header-actions">
         <div>
           <h2>
-  {isAllHistory
-    ? "Todos los Check List Vehículos"
-    : "Mis Check List Vehículos"}
-</h2>
+            {isAllHistory
+              ? "Historial General Check List Vehículos"
+              : "Mis Check List Vehículos"}
+          </h2>
 
           <p>
             {isAllHistory
-              ? "Todos los registros guardados por los usuarios."
-              : "Registros completados con sus firmas correspondientes."}
+              ? "Check list terminados disponibles para revisión."
+              : "Check list creados por ti o donde participas."}
           </p>
         </div>
 
@@ -241,7 +273,7 @@ const isAllHistory = location.pathname.includes("historial-todos");
               onClick={() => navigate("/check-vehiculos/historial-todos")}
             >
               <FileText size={18} />
-Todos los Check List
+              Historial General
             </button>
           )}
 
@@ -252,7 +284,7 @@ Todos los Check List
               onClick={() => navigate("/check-vehiculos/historial")}
             >
               <User size={18} />
-Mis Check List
+              Ver Mis Check List
             </button>
           )}
 
@@ -302,7 +334,11 @@ Mis Check List
           <div className="history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
-            <p>Los check list terminados aparecerán aquí.</p>
+            <p>
+              {isAllHistory
+                ? "Los check list terminados aparecerán aquí."
+                : "Los check list donde participas aparecerán aquí."}
+            </p>
           </div>
         ) : (
           <div className="history-list">
@@ -318,25 +354,18 @@ Mis Check List
                   <div className="history-meta">
                     <span>
                       <Calendar size={15} />
-{formatDateTime(record.completedAt || record.createdAt)}
+                      {formatDateTime(record.completedAt || record.createdAt)}
                     </span>
 
                     <span>
                       <User size={15} />
-                      {record.driverName || "Sin conductor"}
+                      Creado por: {record.user?.name || "Usuario"}
                     </span>
 
                     <span>
                       <CheckCircle2 size={15} />
                       {statusLabel(record.status)}
                     </span>
-
-                    {isAllHistory && (
-                      <span>
-                        <User size={15} />
-                        Creado por: {record.user?.name || "Usuario"}
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -357,6 +386,15 @@ Mis Check List
                   >
                     <FileDown size={17} />
                     Vista previa PDF
+                  </button>
+
+                  <button
+                    className="history-pdf-button"
+                    onClick={() => downloadPdf(record)}
+                    type="button"
+                  >
+                    <FileDown size={17} />
+                    Descargar PDF
                   </button>
 
                   {isSuperadmin && (
@@ -401,11 +439,11 @@ Mis Check List
             <div className="detail-grid">
               <div>
                 <span>Fecha y Hora</span>
-<strong>
-  {formatDateTime(
-    selectedRecord.completedAt || selectedRecord.createdAt
-  )}
-</strong>
+                <strong>
+                  {formatDateTime(
+                    selectedRecord.completedAt || selectedRecord.createdAt,
+                  )}
+                </strong>
               </div>
 
               <div>
@@ -414,13 +452,18 @@ Mis Check List
               </div>
 
               <div>
-                <span>Conductor</span>
+                <span>Conductor / Técnico</span>
                 <strong>{selectedRecord.driverName || "Sin conductor"}</strong>
               </div>
 
               <div>
                 <span>Inspector</span>
                 <strong>{selectedRecord.inspectorName || "—"}</strong>
+              </div>
+
+              <div>
+                <span>Creado por</span>
+                <strong>{selectedRecord.user?.name || "Usuario"}</strong>
               </div>
 
               <div>
@@ -437,13 +480,6 @@ Mis Check List
                 <span>Modelo</span>
                 <strong>{selectedRecord.vehicleModel || "—"}</strong>
               </div>
-
-              {isAllHistory && (
-                <div>
-                  <span>Creado por</span>
-                  <strong>{selectedRecord.user?.name || "Usuario"}</strong>
-                </div>
-              )}
             </div>
 
             <div className="detail-section">
@@ -451,7 +487,7 @@ Mis Check List
 
               <div className="detail-grid">
                 <div>
-                  <span>Conductor</span>
+                  <span>Conductor / Técnico</span>
                   <strong>
                     {selectedRecord.driverSignatureUrl ? "Firmado" : "Pendiente"}
                   </strong>
@@ -460,7 +496,9 @@ Mis Check List
                 <div>
                   <span>Inspector</span>
                   <strong>
-                    {selectedRecord.inspectorSignatureUrl ? "Firmado" : "Pendiente"}
+                    {selectedRecord.inspectorSignatureUrl
+                      ? "Firmado"
+                      : "Pendiente"}
                   </strong>
                 </div>
 
@@ -563,6 +601,15 @@ Mis Check List
               >
                 <FileDown size={17} />
                 Vista previa PDF
+              </button>
+
+              <button
+                type="button"
+                className="history-pdf-button detail-pdf-button"
+                onClick={() => downloadPdf(selectedRecord)}
+              >
+                <FileDown size={17} />
+                Descargar PDF
               </button>
 
               {isSuperadmin && (

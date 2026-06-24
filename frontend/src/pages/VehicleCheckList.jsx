@@ -71,6 +71,7 @@ function getSignatureRoleLabel() {
   const role = String(user?.role || "").toUpperCase();
 
   if (role === "CONDUCTOR") return "Conductor";
+  if (role === "TECNICO") return "Técnico";
   if (role === "SUPERVISOR") return "Supervisor";
   if (role === "PREVENCION") return "Prevencionista";
   if (role === "ADMIN") return "Administrador";
@@ -270,17 +271,17 @@ const loggedUser = getLoggedUser();
 const loggedRole = String(loggedUser?.role || "").toUpperCase();
 
 const reviewerFieldLabel =
-  loggedRole === "CONDUCTOR"
+  loggedRole === "CONDUCTOR" || loggedRole === "TECNICO"
     ? "Nombre Supervisor o Prevención"
     : loggedRole === "SUPERVISOR" || loggedRole === "PREVENCION"
-    ? "Nombre Conductor"
+    ? "Nombre Conductor o Técnico"
     : "Nombre Usuario";
 
 const reviewerFieldPlaceholder =
-  loggedRole === "CONDUCTOR"
+  loggedRole === "CONDUCTOR" || loggedRole === "TECNICO"
     ? "Escriba nombre supervisor o prevención..."
     : loggedRole === "SUPERVISOR" || loggedRole === "PREVENCION"
-    ? "Escriba nombre conductor..."
+    ? "Escriba nombre conductor o técnico..."
     : "Escriba nombre usuario...";
 
   const automaticStatus = useMemo(() => {
@@ -348,7 +349,10 @@ const reviewerFieldPlaceholder =
 
       let filtered = [];
 
-      if (loggedRole === "CONDUCTOR") {
+      if (
+  loggedRole === "CONDUCTOR" ||
+  loggedRole === "TECNICO"
+) {
         filtered = (Array.isArray(data) ? data : []).filter((user) =>
           ["SUPERVISOR", "PREVENCION"].includes(
             String(user.role || "").toUpperCase(),
@@ -359,9 +363,9 @@ const reviewerFieldPlaceholder =
         loggedRole === "PREVENCION"
       ) {
         filtered = (Array.isArray(data) ? data : []).filter(
-          (user) =>
-            String(user.role || "").toUpperCase() === "CONDUCTOR",
-        );
+  (user) =>
+    String(user.role || "").toUpperCase() === "CONDUCTOR",
+);
       } else if (loggedRole === "SUPERADMIN") {
         filtered = Array.isArray(data) ? data : [];
       }

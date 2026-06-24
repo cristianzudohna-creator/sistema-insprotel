@@ -80,6 +80,8 @@ function HarnessCheckHistory() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [recordToDelete, setRecordToDelete] = useState(null);
+  const [searchDate, setSearchDate] = useState("");
+const [searchText, setSearchText] = useState("");
 
   async function loadRecords() {
     try {
@@ -131,6 +133,39 @@ const response = await fetch(endpoint, {
     }
   }
 
+  async function downloadPdf(record) {
+  if (!record?.id) return;
+
+  try {
+    const response = await fetch(
+      `${API_URL}/harness-check/${record.id}/pdf`,
+      {
+        headers: authHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el PDF");
+    }
+
+    const blob = await response.blob();
+    const fileUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = `${record.folio || "CHECKLIST_ARNES"}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(fileUrl);
+  } catch (error) {
+    console.error(error);
+    alert("Error descargando PDF ❌");
+  }
+}
+
   function askDeleteRecord(record) {
     setRecordToDelete(record);
   }
@@ -177,6 +212,28 @@ const response = await fetch(endpoint, {
   useEffect(() => {
     loadRecords();
   }, []);
+
+  const filteredRecords = records.filter((record) => {
+  const matchDate =
+    !searchDate ||
+    String(record.date || "").startsWith(searchDate);
+
+  const text = searchText.toLowerCase();
+
+  const matchText =
+    !text ||
+    String(record.folio || "")
+      .toLowerCase()
+      .includes(text) ||
+    String(record.technicianName || "")
+      .toLowerCase()
+      .includes(text) ||
+    String(record.user?.name || "")
+      .toLowerCase()
+      .includes(text);
+
+  return matchDate && matchText;
+});
 
   return (
     <div className="history-page">
@@ -228,10 +285,38 @@ const response = await fetch(endpoint, {
   </div>
 </div>
 
+<div className="history-filters">
+  <input
+    type="date"
+    value={searchDate}
+    onChange={(e) => setSearchDate(e.target.value)}
+    className="history-date-filter"
+  />
+
+  <input
+    type="text"
+    placeholder="Buscar folio, técnico o creador..."
+    value={searchText}
+    onChange={(e) => setSearchText(e.target.value)}
+    className="history-search-input"
+  />
+
+  <button
+    type="button"
+    className="history-clear-filter"
+    onClick={() => {
+      setSearchDate("");
+      setSearchText("");
+    }}
+  >
+    Limpiar filtros
+  </button>
+</div>
+
       <div className="history-card">
         {loading ? (
           <p>Cargando terminados...</p>
-        ) : records.length === 0 ? (
+        ) : filteredRecords.length === 0 ? (
           <div className="history-empty">
             <FileText size={42} />
             <h3>No hay registros</h3>
@@ -239,7 +324,7 @@ const response = await fetch(endpoint, {
           </div>
         ) : (
           <div className="history-list">
-            {records.map((record) => (
+  {filteredRecords.map((record) => (
               <div className="history-row" key={record.id}>
                 <div className="history-icon">
                   <ShieldCheck size={22} />
@@ -291,6 +376,15 @@ const response = await fetch(endpoint, {
                     <FileDown size={17} />
                     Vista previa PDF
                   </button>
+
+                  <button
+  className="history-pdf-button"
+  onClick={() => downloadPdf(record)}
+  type="button"
+>
+  <FileDown size={17} />
+  Descargar PDF
+</button>
 
                   {canDelete && (
                     <button

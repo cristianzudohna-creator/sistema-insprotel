@@ -357,9 +357,9 @@ function SafetyTalkPendingSignatures() {
                     </span>
 
                     <span>
-                      <User size={15} />
-                      {talk.createdByName || talk.user?.name || "Usuario"}
-                    </span>
+  <User size={15} />
+  Creada por: {talk.createdByName || talk.user?.name || "Usuario"}
+</span>
                   </div>
                 </div>
 

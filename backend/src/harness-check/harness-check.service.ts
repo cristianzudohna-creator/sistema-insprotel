@@ -235,21 +235,28 @@ if (!this.isSuperadmin(user) && !isOwner && !isAssignedTechnician && !isReviewer
 }
 
   async findMine(currentUser: any) {
-    const user = await this.getLoggedUser(currentUser);
+  const user = await this.getLoggedUser(currentUser);
 
-    return this.prisma.harnessCheck.findMany({
-      where: {
-        userId: user.id,
-      },
-      include: {
-        items: true,
-        user: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-  }
+  return this.prisma.harnessCheck.findMany({
+    where: {
+      OR: [
+        {
+          userId: user.id,
+        },
+        {
+          technicianName: user.name,
+        },
+      ],
+    },
+    include: {
+      items: true,
+      user: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
 
   async findAllForSuperadmin(currentUser: any) {
   const user = await this.getLoggedUser(currentUser);
@@ -261,41 +268,38 @@ if (!this.isSuperadmin(user) && !isOwner && !isAssignedTechnician && !isReviewer
   }
 
   return this.prisma.harnessCheck.findMany({
-    include: {
-      items: true,
-      user: true,
+  where: {
+    status: {
+      in: ["APROBADO", "RECHAZADO"],
     },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  },
+  include: {
+    items: true,
+    user: true,
+  },
+  orderBy: {
+    createdAt: "desc",
+  },
+});
 }
 
   async finished(currentUser: any) {
   const user = await this.getLoggedUser(currentUser);
 
-  if (this.isTechnician(user)) {
-    return this.prisma.harnessCheck.findMany({
-      where: {
-        technicianName: user.name,
-      },
-      include: {
-        items: true,
-        user: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-  }
-
-  if (!this.isReviewer(user)) {
-    throw new ForbiddenException(
-      "No tienes permiso para ver check list de arnés terminados",
-    );
-  }
-
   return this.prisma.harnessCheck.findMany({
+    where: {
+      status: {
+        in: ["APROBADO", "RECHAZADO"],
+      },
+      OR: [
+        {
+          userId: user.id,
+        },
+        {
+          technicianName: user.name,
+        },
+      ],
+    },
     include: {
       items: true,
       user: true,

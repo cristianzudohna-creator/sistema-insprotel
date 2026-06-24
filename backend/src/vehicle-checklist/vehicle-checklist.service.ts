@@ -81,19 +81,22 @@ export class VehicleChecklistService {
     return this.role(user) === "CONDUCTOR";
   }
 
+  private isTecnico(user: any) {
+    return this.role(user) === "TECNICO";
+  }
+
+  private isDriverOrTecnico(user: any) {
+    const role = this.role(user);
+    return role === "CONDUCTOR" || role === "TECNICO";
+  }
+
   private isReviewer(user: any) {
     const role = this.role(user);
     return role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
   }
 
   private canCreate(user: any) {
-    return this.isDriver(user) || this.isReviewer(user);
-  }
-
-  private ensureTecnicoOut(user: any) {
-    if (this.role(user) === "TECNICO") {
-      throw new ForbiddenException("TÉCNICO no participa en Check List Vehículos");
-    }
+    return this.isDriverOrTecnico(user) || this.isReviewer(user);
   }
 
   private formatMaintenance(value: any) {
@@ -158,7 +161,11 @@ export class VehicleChecklistService {
         where: { id: driverUserId },
       });
 
-      if (found && found.role === "CONDUCTOR" && found.isActive) {
+      if (
+        found &&
+        found.isActive &&
+        (found.role === "CONDUCTOR" || found.role === "TECNICO")
+      ) {
         return found;
       }
     }
@@ -168,7 +175,9 @@ export class VehicleChecklistService {
     if (driverName) {
       const found = await this.prisma.user.findFirst({
         where: {
-          role: "CONDUCTOR",
+          role: {
+            in: ["CONDUCTOR", "TECNICO"],
+          },
           isActive: true,
           name: {
             equals: driverName,
@@ -180,7 +189,7 @@ export class VehicleChecklistService {
       if (found) return found;
     }
 
-    if (this.isDriver(fallbackUser)) return fallbackUser;
+    if (this.isDriverOrTecnico(fallbackUser)) return fallbackUser;
 
     return null;
   }
@@ -195,8 +204,6 @@ export class VehicleChecklistService {
 
   private async canAccessChecklist(id: number, currentUser: any) {
     const user = await this.getLoggedUser(currentUser);
-    this.ensureTecnicoOut(user);
-
     const checklist = await this.prisma.vehicleCheckList.findUnique({
       where: { id },
       include: this.checklistInclude(),
@@ -208,8 +215,9 @@ export class VehicleChecklistService {
 
     const isOwner = checklist.userId === user.id;
     const isAssignedDriver = checklist.driverUserId === user.id;
+    const isAssignedReviewer = checklist.supervisorUserId === user.id;
 
-    if (!this.isReviewer(user) && !isOwner && !isAssignedDriver) {
+    if (!this.isReviewer(user) && !isOwner && !isAssignedDriver && !isAssignedReviewer) {
       throw new ForbiddenException("No tienes permiso para ver este check list");
     }
 
@@ -324,8 +332,6 @@ export class VehicleChecklistService {
     currentUser?: any,
   ) {
     const user = await this.getLoggedUser(currentUser);
-    this.ensureTecnicoOut(user);
-
     if (!this.canCreate(user)) {
       throw new ForbiddenException("No tienes permiso para crear check list vehículos");
     }
@@ -334,7 +340,7 @@ export class VehicleChecklistService {
     const driver = await this.findDriverByData(data, user);
 
     if (!driver) {
-      throw new ForbiddenException("Debes seleccionar un conductor válido");
+      throw new ForbiddenException("Debes seleccionar un conductor o técnico válido");
     }
 
     const lastChecklist = await this.prisma.vehicleCheckList.findFirst({
@@ -352,12 +358,12 @@ export class VehicleChecklistService {
     const creatorRole = this.role(user) as any;
     const now = new Date();
 
-    const isCreatedByDriver = this.isDriver(user);
+    const isCreatedByDriverOrTecnico = this.isDriverOrTecnico(user);
     const selectedReviewerId = Number(data.supervisorUserId || 0);
 
     let selectedReviewer: any = null;
 
-    if (isCreatedByDriver && selectedReviewerId) {
+    if (isCreatedByDriverOrTecnico && selectedReviewerId) {
   selectedReviewer = await this.prisma.user.findFirst({
     where: {
       id: selectedReviewerId,
@@ -375,7 +381,7 @@ export class VehicleChecklistService {
   }
 }
 
-    if (isCreatedByDriver && !selectedReviewerId) {
+    if (isCreatedByDriverOrTecnico && !selectedReviewerId) {
       throw new ForbiddenException(
         "Debes seleccionar un supervisor o prevención para la firma",
       );
@@ -399,7 +405,7 @@ export class VehicleChecklistService {
         supervisorName:
           data.supervisorName || selectedReviewer?.name || null,
         supervisorUserId: selectedReviewerId || null,
-        inspectorName: isCreatedByDriver
+        inspectorName: isCreatedByDriverOrTecnico
           ? data.inspectorName || null
           : data.inspectorName || user.name,
 
@@ -475,7 +481,7 @@ export class VehicleChecklistService {
       include: this.checklistInclude(),
     });
 
-    if (isCreatedByDriver) {
+    if (isCreatedByDriverOrTecnico) {
       await this.notifySelectedReviewer(created);
     } else {
       await this.notifyDriver(created);
@@ -485,16 +491,41 @@ export class VehicleChecklistService {
   }
 
   async findMine(currentUser: any) {
-    const user = await this.getLoggedUser(currentUser);
-    this.ensureTecnicoOut(user);
+    return this.findCreatedByMe(currentUser);
+  }
 
-    if (this.isReviewer(user)) {
-      return this.finished(currentUser);
-    }
+  async findCreatedByMe(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
 
     return this.prisma.vehicleCheckList.findMany({
       where: {
-        OR: [{ userId: user.id }, { driverUserId: user.id }],
+        userId: user.id,
+        status: {
+          in: ["PENDIENTE_FIRMAS", "COMPLETADO"],
+        },
+      },
+      include: this.checklistInclude(),
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async findParticipating(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+
+    return this.prisma.vehicleCheckList.findMany({
+      where: {
+        status: {
+          in: ["PENDIENTE_FIRMAS", "COMPLETADO"],
+        },
+        OR: [
+          { driverUserId: user.id },
+          { supervisorUserId: user.id },
+        ],
+        NOT: {
+          userId: user.id,
+        },
       },
       include: this.checklistInclude(),
       orderBy: {
@@ -504,42 +535,12 @@ export class VehicleChecklistService {
   }
 
   async findAllForSuperadmin(currentUser: any) {
-  const user = await this.getLoggedUser(currentUser);
-  this.ensureTecnicoOut(user);
-
-  if (!this.isReviewer(user)) {
-    throw new ForbiddenException(
-      "No tienes permiso para ver todos los check list",
-    );
-  }
-
-  return this.prisma.vehicleCheckList.findMany({
-    include: this.checklistInclude(),
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-}
-
-  async finished(currentUser: any) {
     const user = await this.getLoggedUser(currentUser);
-    this.ensureTecnicoOut(user);
-
-    if (this.isDriver(user)) {
-      return this.prisma.vehicleCheckList.findMany({
-        where: {
-          OR: [{ userId: user.id }, { driverUserId: user.id }],
-          status: "COMPLETADO",
-        },
-        include: this.checklistInclude(),
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
-    }
 
     if (!this.isReviewer(user)) {
-      throw new ForbiddenException("No tienes permiso para ver check list terminados");
+      throw new ForbiddenException(
+        "No tienes permiso para ver todos los check list",
+      );
     }
 
     return this.prisma.vehicleCheckList.findMany({
@@ -553,11 +554,30 @@ export class VehicleChecklistService {
     });
   }
 
+  async finished(currentUser: any) {
+    const user = await this.getLoggedUser(currentUser);
+
+    return this.prisma.vehicleCheckList.findMany({
+      where: {
+        status: {
+          in: ["PENDIENTE_FIRMAS", "COMPLETADO"],
+        },
+        OR: [
+          { userId: user.id },
+          { driverUserId: user.id },
+          { supervisorUserId: user.id },
+        ],
+      },
+      include: this.checklistInclude(),
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
   async pendingSignatures(currentUser: any) {
     const user = await this.getLoggedUser(currentUser);
-    this.ensureTecnicoOut(user);
-
-    if (this.isDriver(user)) {
+    if (this.isDriverOrTecnico(user)) {
       return this.prisma.vehicleCheckList.findMany({
         where: {
           driverUserId: user.id,
@@ -610,8 +630,6 @@ if (role === "SUPERADMIN") {
     signature?: Express.Multer.File | null,
   ) {
     const user = await this.getLoggedUser(currentUser);
-    this.ensureTecnicoOut(user);
-
     if (!signature) {
       throw new ForbiddenException("Debes adjuntar una firma");
     }
@@ -628,13 +646,13 @@ if (role === "SUPERADMIN") {
     const signatureUrl = `/uploads/vehicle-checklist/${signature.filename}`;
     const now = new Date();
 
-    if (this.isDriver(user)) {
+    if (this.isDriverOrTecnico(user)) {
       if (check.driverUserId !== user.id) {
-        throw new ForbiddenException("Este check list no está asignado a este conductor");
+        throw new ForbiddenException("Este check list no está asignado a este conductor o técnico");
       }
 
       if (check.driverSignatureUrl) {
-        throw new ForbiddenException("Este check list ya fue firmado por el conductor");
+        throw new ForbiddenException("Este check list ya fue firmado por el conductor o técnico");
       }
 
       await this.prisma.vehicleCheckList.update({
@@ -655,9 +673,9 @@ if (role === "SUPERADMIN") {
 
     const role = this.role(user);
 
-    if (check.createdByRole !== "CONDUCTOR") {
+    if (check.createdByRole !== "CONDUCTOR" && check.createdByRole !== "TECNICO") {
       throw new ForbiddenException(
-        "Este check list ya fue creado por inspector. Solo falta firma del conductor.",
+        "Este check list ya fue creado por inspector. Solo falta firma del conductor o técnico.",
       );
     }
 
@@ -1382,8 +1400,6 @@ if (role === "SUPERADMIN") {
 
   async remove(id: number, currentUser?: any) {
     const user = await this.getLoggedUser(currentUser);
-    this.ensureTecnicoOut(user);
-
     const checklist = await this.prisma.vehicleCheckList.findUnique({
       where: {
         id,

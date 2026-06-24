@@ -57,10 +57,11 @@ const canSeeAllHarnessChecks =
   role === "PREVENCION";
 
   const canUseVehicleCheck =
-    role === "SUPERADMIN" ||
-    role === "SUPERVISOR" ||
-    role === "PREVENCION" ||
-    role === "CONDUCTOR";
+  role === "SUPERADMIN" ||
+  role === "SUPERVISOR" ||
+  role === "PREVENCION" ||
+  role === "CONDUCTOR" ||
+  role === "TECNICO";
 
   const canCreateSafetyTalks =
     role === "SUPERADMIN" ||
@@ -223,7 +224,7 @@ const canSeeAllHarnessChecks =
     }
   >
     <FileText size={20} />
-    <span>Todos los Check List Vehículos</span>
+    <span>Check List Vehículos Terminados</span>
   </NavLink>
 )}
 
@@ -276,7 +277,7 @@ const canSeeAllHarnessChecks =
     }
   >
     <FileText size={20} />
-    <span>Todos los Check List Arnés</span>
+    <span>Check List Arnés Terminados</span>
   </NavLink>
 )}
 
