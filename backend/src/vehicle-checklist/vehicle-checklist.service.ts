@@ -54,9 +54,20 @@ export class VehicleChecklistService {
   }
 
   private text(value: any) {
-    if (value === null || value === undefined || value === "") return "—";
-    return String(value);
-  }
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
+}
+
+  private cleanText(value: any) {
+  if (value === null || value === undefined || value === "") return "—";
+
+  return String(value)
+    .replace(/Đ/g, "")
+    .replace(/\u0110/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
+}
 
   private role(user: any) {
     return String(user?.role || "").toUpperCase();
@@ -1022,13 +1033,14 @@ if (role === "SUPERADMIN") {
   "Fecha",
   checklist.completedAt
   ? new Date(checklist.completedAt).toLocaleString("es-CL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
+  timeZone: "America/Santiago",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+})
   : this.formatDate(checklist.date),
 ],
       ["Patente", this.text(checklist.patent)],
@@ -1184,13 +1196,13 @@ if (role === "SUPERADMIN") {
         drawCell(x + colElemento + colSmall, yy, colSmall, rowH, "");
         drawCell(x + colElemento + colSmall * 2, yy, colSmall, rowH, "");
         drawCell(
-          x + colElemento + colSmall * 3,
-          yy,
-          colObs,
-          rowH,
-          this.text(item?.observation || ""),
-          { fontSize: 5.4 },
-        );
+  x + colElemento + colSmall * 3,
+  yy,
+  colObs,
+  rowH,
+  this.cleanText(item?.observation || ""),
+  { fontSize: 5.4 },
+);
 
         if (status === "BUENO") drawX(x + colElemento, yy, colSmall, rowH);
         else if (status === "MALO") drawX(x + colElemento + colSmall, yy, colSmall, rowH);
@@ -1293,14 +1305,14 @@ if (role === "SUPERADMIN") {
     doc.rect(margin, currentY, contentWidth, obsH).stroke(black);
 
     doc
-      .font("Helvetica")
-      .fontSize(10)
-      .fillColor(black)
-      .text(this.text(checklist.generalObservation || ""), margin + 14, currentY + 14, {
-        width: contentWidth - 28,
-        height: obsH - 18,
-        align: "left",
-      });
+  .font("Helvetica")
+  .fontSize(10)
+  .fillColor(black)
+  .text(this.cleanText(checklist.generalObservation || ""), margin + 14, currentY + 14, {
+    width: contentWidth - 28,
+    height: obsH - 18,
+    align: "left",
+  });
 
     currentY += obsH + 18;
 

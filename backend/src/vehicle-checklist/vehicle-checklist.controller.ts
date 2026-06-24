@@ -74,9 +74,9 @@ export class VehicleChecklistController {
         storage: imageStorage,
         fileFilter: imageFileFilter,
         limits: {
-          files: 12,
-          fileSize: 10 * 1024 * 1024,
-        },
+  files: 12,
+  fileSize: 250 * 1024 * 1024,
+},
       },
     ),
   )
@@ -125,9 +125,9 @@ export class VehicleChecklistController {
       storage: imageStorage,
       fileFilter: imageFileFilter,
       limits: {
-        files: 1,
-        fileSize: 10 * 1024 * 1024,
-      },
+  files: 1,
+  fileSize: 250 * 1024 * 1024,
+},
     }),
   )
   async sign(
