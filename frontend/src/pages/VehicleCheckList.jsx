@@ -658,8 +658,11 @@ setSignatureEnabled(true);
       });
 
       if (!response.ok) {
-        throw new Error("Error guardando checklist");
-      }
+  const errorText = await response.text();
+  console.error("ERROR BACKEND:", response.status, errorText);
+  alert(`Error ${response.status}: ${errorText}`);
+  return;
+}
 
       await response.json();
 
