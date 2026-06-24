@@ -554,8 +554,6 @@ function SafetyTalks() {
         return;
       }
 
-      onClick={handleSignatureMainButton}
-
       setLoading(true);
 
       const canvas = canvasRef.current;
