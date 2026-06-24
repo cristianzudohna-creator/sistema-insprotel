@@ -42,7 +42,6 @@ export class ToolsEppCheckController {
     FileFieldsInterceptor(
       [
         { name: "technicianSignature", maxCount: 1 },
-        { name: "inspectorSignature", maxCount: 1 },
       ],
       {
         storage: diskStorage({
@@ -66,7 +65,7 @@ export class ToolsEppCheckController {
         },
 
         limits: {
-          files: 2,
+          files: 1,
           fileSize: 10 * 1024 * 1024,
         },
       },
@@ -78,14 +77,12 @@ export class ToolsEppCheckController {
     @UploadedFiles()
     files: {
       technicianSignature?: Express.Multer.File[];
-      inspectorSignature?: Express.Multer.File[];
     },
   ) {
     return this.toolsEppCheckService.create(
       req.user,
       body,
       files?.technicianSignature?.[0] || null,
-      files?.inspectorSignature?.[0] || null,
     );
   }
 

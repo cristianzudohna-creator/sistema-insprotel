@@ -88,6 +88,19 @@ function HarnessRoute({ children }) {
   return children;
 }
 
+function ToolsEppRoute({ children }) {
+  const role = getRole();
+
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
+
+  if (!["SUPERADMIN", "SUPERVISOR", "PREVENCION", "TECNICO"].includes(role)) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return children;
+}
+
 function AppRoutes() {
   return (
     <MainLayout>
@@ -244,31 +257,31 @@ function AppRoutes() {
 
         {/* HERRAMIENTAS TECNICO */}
         <Route
-          path="/check-herramientas"
-          element={
-            <SuperadminRoute>
-              <ToolsEppCheck />
-            </SuperadminRoute>
-          }
-        />
+  path="/check-herramientas"
+  element={
+    <ToolsEppRoute>
+      <ToolsEppCheck />
+    </ToolsEppRoute>
+  }
+/>
 
         <Route
-          path="/check-herramientas/historial"
-          element={
-            <SuperadminRoute>
-              <ToolsEppCheckHistory />
-            </SuperadminRoute>
-          }
-        />
+  path="/check-herramientas/historial"
+  element={
+    <ToolsEppRoute>
+      <ToolsEppCheckHistory />
+    </ToolsEppRoute>
+  }
+/>
 
         <Route
-          path="/check-herramientas/historial-todos"
-          element={
-            <SuperadminRoute>
-              <ToolsEppCheckHistory />
-            </SuperadminRoute>
-          }
-        />
+  path="/check-herramientas/historial-todos"
+  element={
+    <ToolsEppRoute>
+      <ToolsEppCheckHistory />
+    </ToolsEppRoute>
+  }
+/>
 
         {/* HERRAMIENTAS CONDUCTOR */}
         <Route

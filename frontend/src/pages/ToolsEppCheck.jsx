@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -85,6 +85,33 @@ function getToken() {
   );
 }
 
+function getLoggedUser() {
+  try {
+    const raw =
+      localStorage.getItem("user") ||
+      localStorage.getItem("me") ||
+      localStorage.getItem("profile");
+
+    if (!raw) return null;
+
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getLoggedUserName() {
+  const user = getLoggedUser();
+
+  return (
+    user?.name ||
+    user?.fullName ||
+    user?.nombre ||
+    user?.displayName ||
+    "Usuario logueado"
+  );
+}
+
 function dataUrlToFile(dataUrl, filename) {
   const arr = dataUrl.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
@@ -112,27 +139,56 @@ function buildInitialItems() {
 
 function ToolsEppCheck() {
   const navigate = useNavigate();
+  const loggedUserName = getLoggedUserName();
 
   const technicianCanvasRef = useRef(null);
-  const inspectorCanvasRef = useRef(null);
   const drawingRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const [hasTechnicianSignature, setHasTechnicianSignature] = useState(false);
-  const [hasInspectorSignature, setHasInspectorSignature] = useState(false);
 
   const [form, setForm] = useState({
-    contract: "",
-    technicianName: "",
-    mobile: "",
-    supervisorInspectorName: "",
-    zone: "",
-    generalObservation: "",
-  });
+  contract: "",
+  technicianName: loggedUserName,
+  mobile: "",
+  supervisorInspectorName: "",
+  supervisorInspectorUserId: "",
+  zone: "",
+  generalObservation: "",
+});
 
   const [items, setItems] = useState(buildInitialItems());
+  const [signatureEnabled, setSignatureEnabled] = useState(false);
+const [supervisorOptions, setSupervisorOptions] = useState([]);
+const [showSupervisorOptions, setShowSupervisorOptions] = useState(false);
+
+useEffect(() => {
+  async function loadUsers() {
+    try {
+      const response = await fetch(`${API_URL}/users/workers`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      const data = await response.json();
+
+      const filtered = (Array.isArray(data) ? data : []).filter((user) =>
+        ["SUPERVISOR", "PREVENCION"].includes(
+          String(user.role || "").toUpperCase(),
+        ),
+      );
+
+      setSupervisorOptions(filtered);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  loadUsers();
+}, []);
 
   function updateField(field, value) {
     setForm((prev) => ({
@@ -191,10 +247,7 @@ function ToolsEppCheck() {
   function startSignature(event, type) {
     event.preventDefault();
 
-    const canvas =
-      type === "technician"
-        ? technicianCanvasRef.current
-        : inspectorCanvasRef.current;
+    const canvas = technicianCanvasRef.current;
 
     if (!canvas) return;
 
@@ -216,10 +269,7 @@ function ToolsEppCheck() {
 
     event.preventDefault();
 
-    const canvas =
-      type === "technician"
-        ? technicianCanvasRef.current
-        : inspectorCanvasRef.current;
+    const canvas = technicianCanvasRef.current;
 
     if (!canvas) return;
 
@@ -230,7 +280,6 @@ function ToolsEppCheck() {
     ctx.stroke();
 
     if (type === "technician") setHasTechnicianSignature(true);
-    if (type === "inspector") setHasInspectorSignature(true);
   }
 
   function stopSignature() {
@@ -238,10 +287,7 @@ function ToolsEppCheck() {
   }
 
   function clearSignature(type) {
-    const canvas =
-      type === "technician"
-        ? technicianCanvasRef.current
-        : inspectorCanvasRef.current;
+    const canvas = technicianCanvasRef.current;
 
     if (!canvas) return;
 
@@ -252,24 +298,27 @@ function ToolsEppCheck() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
-    if (type === "technician") setHasTechnicianSignature(false);
-    if (type === "inspector") setHasInspectorSignature(false);
+    if (type === "technician") {
+  setHasTechnicianSignature(false);
+  setSignatureEnabled(true);
+}
   }
 
   function resetForm() {
     setForm({
-      contract: "",
-      technicianName: "",
-      mobile: "",
-      supervisorInspectorName: "",
-      zone: "",
-      generalObservation: "",
-    });
+  contract: "",
+  technicianName: getLoggedUserName(),
+  mobile: "",
+  supervisorInspectorName: "",
+  supervisorInspectorUserId: "",
+  zone: "",
+  generalObservation: "",
+});
 
     setItems(buildInitialItems());
 
     clearSignature("technician");
-    clearSignature("inspector");
+    setSignatureEnabled(false);
   }
 
   async function handleSubmit(e) {
@@ -291,21 +340,11 @@ function ToolsEppCheck() {
         return;
       }
 
-      if (!hasInspectorSignature) {
-        alert("Debes registrar la firma del supervisor / inspector.");
-        return;
-      }
-
       setLoading(true);
 
       const technicianFile = dataUrlToFile(
         technicianCanvasRef.current.toDataURL("image/png"),
         "firma-tecnico.png",
-      );
-
-      const inspectorFile = dataUrlToFile(
-        inspectorCanvasRef.current.toDataURL("image/png"),
-        "firma-inspector.png",
       );
 
       const formData = new FormData();
@@ -317,6 +356,10 @@ function ToolsEppCheck() {
         "supervisorInspectorName",
         form.supervisorInspectorName,
       );
+      formData.append(
+  "supervisorInspectorUserId",
+  String(form.supervisorInspectorUserId || ""),
+);
       formData.append("zone", form.zone);
       formData.append("generalObservation", form.generalObservation);
 
@@ -334,7 +377,6 @@ function ToolsEppCheck() {
       );
 
       formData.append("technicianSignature", technicianFile);
-      formData.append("inspectorSignature", inspectorFile);
 
       const response = await fetch(`${API_URL}/tools-epp-check`, {
         method: "POST",
@@ -405,15 +447,6 @@ function ToolsEppCheck() {
             </div>
 
             <div className="field">
-              <label>Nombre Técnico</label>
-              <input
-                type="text"
-                value={form.technicianName}
-                onChange={(e) => updateField("technicianName", e.target.value)}
-              />
-            </div>
-
-            <div className="field">
               <label>Móvil</label>
               <input
                 type="text"
@@ -422,16 +455,53 @@ function ToolsEppCheck() {
               />
             </div>
 
-            <div className="field">
-              <label>Supervisor / Inspector</label>
-              <input
-                type="text"
-                value={form.supervisorInspectorName}
-                onChange={(e) =>
-                  updateField("supervisorInspectorName", e.target.value)
-                }
-              />
-            </div>
+            <div className="field vehicle-autocomplete">
+  <label>Supervisor o Prevención</label>
+
+  <input
+    type="text"
+    value={form.supervisorInspectorName}
+    onChange={(e) => {
+      updateField("supervisorInspectorName", e.target.value);
+      setShowSupervisorOptions(true);
+    }}
+    onFocus={() => setShowSupervisorOptions(true)}
+    placeholder="Escriba nombre supervisor o prevención..."
+    autoComplete="off"
+  />
+
+  {showSupervisorOptions && (
+    <div className="vehicle-options">
+      {supervisorOptions
+        .filter((user) =>
+          user.name
+            ?.toLowerCase()
+            .includes(form.supervisorInspectorName.toLowerCase()),
+        )
+        .slice(0, 10)
+        .map((user) => (
+          <button
+            key={user.id}
+            type="button"
+            className="vehicle-option"
+            onMouseDown={() => {
+  updateField("supervisorInspectorName", user.name);
+  updateField("supervisorInspectorUserId", user.id);
+  setShowSupervisorOptions(false);
+}}
+          >
+            <strong>{user.name}</strong>
+
+            <span>
+              {String(user.role || "").toUpperCase() === "SUPERVISOR"
+                ? "Supervisor"
+                : "Prevención"}
+            </span>
+          </button>
+        ))}
+    </div>
+  )}
+</div>
 
             <div className="field">
               <label>Zona</label>
@@ -552,56 +622,107 @@ function ToolsEppCheck() {
             Firmas
           </div>
 
-          <div className="tools-signature-grid">
-            <div className="tools-signature-box">
-              <h3>Firma Técnico</h3>
+          <div style={{ width: "100%" }}>
+            <div
+  className={`vehicle-client-signature ${
+    hasTechnicianSignature ? "signed" : ""
+  }`}
+>
+  <div className="vehicle-client-signature-header">
+    <div>
+      <div className="vehicle-client-signature-title">
+        <PenLine size={22} />
+        Firma del Técnico
+      </div>
 
-              <canvas
-                ref={technicianCanvasRef}
-                className="tools-signature-canvas"
-                onMouseDown={(e) => startSignature(e, "technician")}
-                onMouseMove={(e) => drawSignature(e, "technician")}
-                onMouseUp={stopSignature}
-                onMouseLeave={stopSignature}
-                onTouchStart={(e) => startSignature(e, "technician")}
-                onTouchMove={(e) => drawSignature(e, "technician")}
-                onTouchEnd={stopSignature}
-              />
+      <h4>
+        Firma de {loggedUserName}
+        <span> (Técnico)</span>
+      </h4>
 
-              <button
-                type="button"
-                className="signature-clear-button"
-                onClick={() => clearSignature("technician")}
-              >
-                <RotateCcw size={16} />
-                Limpiar firma
-              </button>
-            </div>
+      <p>
+        {signatureEnabled
+          ? "🔓 Firma habilitada"
+          : "🔒 Firma bloqueada (habilita antes de firmar)"}
+      </p>
+    </div>
 
-            <div className="tools-signature-box">
-              <h3>Firma Supervisor / Inspector</h3>
+    <div className="vehicle-client-signature-actions">
+      <button
+        type="button"
+        className="vehicle-enable-signature-button"
+        onClick={() => {
+          setSignatureEnabled((prev) => !prev);
+        }}
+      >
+        <PenLine size={18} />
+        {signatureEnabled ? "Bloquear firma" : "Habilitar firma"}
+      </button>
 
-              <canvas
-                ref={inspectorCanvasRef}
-                className="tools-signature-canvas"
-                onMouseDown={(e) => startSignature(e, "inspector")}
-                onMouseMove={(e) => drawSignature(e, "inspector")}
-                onMouseUp={stopSignature}
-                onMouseLeave={stopSignature}
-                onTouchStart={(e) => startSignature(e, "inspector")}
-                onTouchMove={(e) => drawSignature(e, "inspector")}
-                onTouchEnd={stopSignature}
-              />
+      <button
+        type="button"
+        className="vehicle-clear-signature-button"
+        onClick={() => clearSignature("technician")}
+        disabled={!hasTechnicianSignature}
+      >
+        <RotateCcw size={18} />
+        Limpiar
+      </button>
+    </div>
+  </div>
 
-              <button
-                type="button"
-                className="signature-clear-button"
-                onClick={() => clearSignature("inspector")}
-              >
-                <RotateCcw size={16} />
-                Limpiar firma
-              </button>
-            </div>
+  <div className="vehicle-signature-pad">
+    {!signatureEnabled && (
+      <div className="vehicle-signature-placeholder">
+        <div>🔒</div>
+        <strong>Firma deshabilitada</strong>
+        <span>Presiona habilitar firma para comenzar</span>
+      </div>
+    )}
+
+    <canvas
+      ref={technicianCanvasRef}
+      className="signature-canvas"
+      onMouseDown={
+        signatureEnabled
+          ? (e) => startSignature(e, "technician")
+          : undefined
+      }
+      onMouseMove={
+        signatureEnabled
+          ? (e) => drawSignature(e, "technician")
+          : undefined
+      }
+      onMouseUp={signatureEnabled ? stopSignature : undefined}
+      onMouseLeave={signatureEnabled ? stopSignature : undefined}
+      onTouchStart={
+        signatureEnabled
+          ? (e) => startSignature(e, "technician")
+          : undefined
+      }
+      onTouchMove={
+        signatureEnabled
+          ? (e) => drawSignature(e, "technician")
+          : undefined
+      }
+      onTouchEnd={signatureEnabled ? stopSignature : undefined}
+    />
+  </div>
+
+  <p className="vehicle-signature-help">
+    Habilita la firma y firma dentro del recuadro antes de guardar.
+  </p>
+
+  <div className="vehicle-signature-status">
+    Estado firma:{" "}
+    {hasTechnicianSignature ? (
+      <span className="ok">✅ Firma registrada</span>
+    ) : (
+      <span className="bad">❌ Falta firma</span>
+    )}
+  </div>
+</div>
+
           </div>
         </div>
 

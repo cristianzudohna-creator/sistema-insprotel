@@ -42,7 +42,15 @@ function authHeaders() {
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
-  return new Date(value).toLocaleDateString("es-CL");
+
+  return new Date(value).toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 function ToolsEppCheckHistory() {
@@ -50,7 +58,12 @@ function ToolsEppCheckHistory() {
   const location = useLocation();
 
   const user = useMemo(() => getUser(), []);
-  const isSuperadmin = String(user?.role || "").toUpperCase() === "SUPERADMIN";
+  const role = String(user?.role || "").toUpperCase();
+
+const canViewAll =
+  role === "SUPERADMIN" ||
+  role === "SUPERVISOR" ||
+  role === "PREVENCION";
   const isAllHistory = location.pathname.includes("historial-todos");
 
   const [records, setRecords] = useState([]);
@@ -103,6 +116,42 @@ function ToolsEppCheckHistory() {
       alert("Error abriendo PDF ❌");
     }
   }
+  async function downloadPdf(record) {
+  if (!record?.id) return;
+
+  try {
+    const response = await fetch(
+      `${API_URL}/tools-epp-check/${record.id}/pdf`,
+      {
+        headers: authHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Error descargando PDF");
+    }
+
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `${record.folio || "AUTOINSPECCION"}.pdf`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert("Error descargando PDF");
+  }
+}
 
   function askDeleteRecord(record) {
     setRecordToDelete(record);
@@ -144,7 +193,7 @@ function ToolsEppCheckHistory() {
   }
 
   useEffect(() => {
-    if (isAllHistory && !isSuperadmin) {
+    if (isAllHistory && !canViewAll) {
       alert("No tienes permiso para ver todos los check list de herramientas");
       navigate("/check-herramientas/historial");
       return;
@@ -171,7 +220,7 @@ function ToolsEppCheckHistory() {
         </div>
 
         <div className="tools-history-header-buttons">
-          {isSuperadmin && !isAllHistory && (
+          {canViewAll && !isAllHistory && (
             <button
               type="button"
               className="tools-history-back-button"
@@ -268,7 +317,16 @@ function ToolsEppCheckHistory() {
                     Vista previa PDF
                   </button>
 
-                  {(isSuperadmin || !isAllHistory) && (
+                  <button
+  className="tools-history-pdf-button"
+  onClick={() => downloadPdf(record)}
+  type="button"
+>
+  <FileDown size={17} />
+  Descargar PDF
+</button>
+
+                  {(canViewAll || !isAllHistory) && (
                     <button
                       className="tools-history-delete-button"
                       onClick={() => askDeleteRecord(record)}
@@ -392,7 +450,7 @@ function ToolsEppCheckHistory() {
                 Vista previa PDF
               </button>
 
-              {(isSuperadmin || !isAllHistory) && (
+              {(canViewAll || !isAllHistory) && (
                 <button
                   type="button"
                   className="tools-history-delete-button"

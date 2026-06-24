@@ -9,10 +9,14 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class ToolsEppCheckService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly notificationsService: NotificationsService,
+) {}
 
   private text(value: any) {
     if (value === null || value === undefined || value === "") return "—";
@@ -31,18 +35,32 @@ export class ToolsEppCheckService {
   }
 
   private formatDate(value: any) {
-    if (!value) return "—";
+  if (!value) return "—";
 
-    try {
-      return new Date(value).toLocaleDateString("es-CL");
-    } catch {
-      return "—";
-    }
+  try {
+    return new Date(value).toLocaleString("es-CL", {
+      timeZone: "America/Santiago",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return "—";
   }
+}
 
-  private isSuperadmin(user: any) {
-    return String(user?.role || "").toUpperCase() === "SUPERADMIN";
-  }
+  private canViewAll(user: any) {
+  const role = String(user?.role || "").toUpperCase();
+
+  return (
+    role === "SUPERADMIN" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION"
+  );
+}
 
   private async getLoggedUser(user: any) {
     const userId = Number(user?.id || user?.sub || 0);
@@ -84,7 +102,7 @@ export class ToolsEppCheckService {
       );
     }
 
-    if (!this.isSuperadmin(user) && check.userId !== user.id) {
+    if (!this.canViewAll(user) && check.userId !== user.id) {
       throw new ForbiddenException(
         "No tienes permiso para ver este check list",
       );
@@ -94,11 +112,10 @@ export class ToolsEppCheckService {
   }
 
   async create(
-    currentUser: any,
-    data: any,
-    technicianSignature?: Express.Multer.File | null,
-    inspectorSignature?: Express.Multer.File | null,
-  ) {
+  currentUser: any,
+  data: any,
+  technicianSignature?: Express.Multer.File | null,
+){
     const user = await this.getLoggedUser(currentUser);
     const items = this.parseItems(data.items);
 
@@ -114,7 +131,7 @@ export class ToolsEppCheckService {
       nextNumber,
     ).padStart(4, "0")}`;
 
-    return this.prisma.toolsEppCheck.create({
+    const created = await this.prisma.toolsEppCheck.create({
       data: {
         folio: generatedFolio,
         date: new Date(),
@@ -126,10 +143,7 @@ export class ToolsEppCheckService {
         technicianSignatureUrl: technicianSignature
           ? `/uploads/tools-epp-check/${technicianSignature.filename}`
           : null,
-        inspectorSignatureUrl: inspectorSignature
-          ? `/uploads/tools-epp-check/${inspectorSignature.filename}`
-          : null,
-        status: data.status || "PENDIENTE",
+        status: "APROBADO",
         generalObservation: data.generalObservation || null,
         userId: user.id,
 
@@ -151,6 +165,21 @@ export class ToolsEppCheckService {
         user: true,
       },
     });
+
+    const selectedReviewerId = Number(data.supervisorInspectorUserId || 0);
+
+if (selectedReviewerId) {
+  await this.notificationsService.create(
+    selectedReviewerId,
+    "Nueva autoinspección técnica",
+    `${created.technicianName || user.name} realizó una autoinspección ${
+      created.folio ? `(${created.folio})` : ""
+    }.`,
+    "/check-herramientas/historial-todos",
+  );
+}
+
+return created;
   }
 
   async findAll(currentUser: any) {
@@ -173,9 +202,9 @@ export class ToolsEppCheckService {
   async findAllAdmin(currentUser: any) {
     const user = await this.getLoggedUser(currentUser);
 
-    if (!this.isSuperadmin(user)) {
+    if (!this.canViewAll(user)) {
       throw new ForbiddenException(
-        "Solo SUPERADMIN puede ver todos los check list de herramientas",
+        "Sin permisos para ver todos los check list"
       );
     }
 
@@ -207,7 +236,7 @@ export class ToolsEppCheckService {
       );
     }
 
-    if (!this.isSuperadmin(user) && check.userId !== user.id) {
+    if (!this.canViewAll(user) && check.userId !== user.id) {
       throw new ForbiddenException(
         "No tienes permiso para eliminar este check list",
       );
@@ -649,11 +678,10 @@ export class ToolsEppCheckService {
 
     y += 70;
 
-    const signGap = 12;
-    const signW = (contentWidth - signGap) / 2;
+    const signW = contentWidth;
     const signH = 76;
 
-    drawCell(margin, y, signW, 18, "Firma Técnico", {
+    drawCell(margin, y, signW, 18, "Firma y Nombre Técnico", {
       fill: gray,
       bold: true,
       align: "center",
@@ -671,36 +699,6 @@ export class ToolsEppCheckService {
         width: signW,
         align: "center",
       });
-
-    drawCell(margin + signW + signGap, y, signW, 18, "Firma Supervisor / Inspector", {
-      fill: gray,
-      bold: true,
-      align: "center",
-      fontSize: 7,
-    });
-
-    doc.rect(margin + signW + signGap, y + 18, signW, signH).stroke(black);
-    drawSignature(
-      margin + signW + signGap,
-      y + 18,
-      signW,
-      signH,
-      check.inspectorSignatureUrl,
-    );
-
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(8)
-      .fillColor(black)
-      .text(
-        this.text(check.supervisorInspectorName),
-        margin + signW + signGap,
-        y + signH - 2,
-        {
-          width: signW,
-          align: "center",
-        },
-      );
 
     doc.end();
   }

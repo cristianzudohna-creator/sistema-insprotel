@@ -85,6 +85,16 @@ const canSeeAllHarnessChecks =
     role === "TECNICO";
 
   const canReviewHarnessFinished = canSignHarnessCheck;
+  const canUseToolsEpp =
+  role === "SUPERADMIN" ||
+  role === "SUPERVISOR" ||
+  role === "PREVENCION" ||
+  role === "TECNICO";
+
+const canSeeAllToolsEpp =
+  role === "SUPERADMIN" ||
+  role === "SUPERVISOR" ||
+  role === "PREVENCION";
 
   function closeMenu() {
     setMenuOpen(false);
@@ -281,6 +291,45 @@ const canSeeAllHarnessChecks =
   </NavLink>
 )}
 
+{canUseToolsEpp && (
+  <>
+    <NavLink
+      to="/check-herramientas"
+      onClick={closeMenu}
+      className={({ isActive }) =>
+        isActive ? "menu-item active-link" : "menu-item"
+      }
+    >
+      <Wrench size={20} />
+      <span>Check List Autoinspeccion Tecnico</span>
+    </NavLink>
+
+    <NavLink
+      to="/check-herramientas/historial"
+      onClick={closeMenu}
+      className={({ isActive }) =>
+        isActive ? "menu-item active-link" : "menu-item"
+      }
+    >
+      <FileText size={20} />
+      <span>Mis Autoinspecciones</span>
+    </NavLink>
+  </>
+)}
+
+{canSeeAllToolsEpp && (
+  <NavLink
+    to="/check-herramientas/historial-todos"
+    onClick={closeMenu}
+    className={({ isActive }) =>
+      isActive ? "menu-item active-link" : "menu-item"
+    }
+  >
+    <FileText size={20} />
+    <span>Autoinspecciones Terminadas</span>
+  </NavLink>
+)}
+
           {isSuperadmin && (
             <>
               <NavLink
@@ -303,17 +352,6 @@ const canSeeAllHarnessChecks =
               >
                 <ClipboardCheck size={20} />
                 <span>Check Escaleras Tijera</span>
-              </NavLink>
-
-              <NavLink
-                to="/check-herramientas"
-                onClick={closeMenu}
-                className={({ isActive }) =>
-                  isActive ? "menu-item active-link" : "menu-item"
-                }
-              >
-                <Wrench size={20} />
-                <span>Check Herramientas y EPP Tecnico</span>
               </NavLink>
 
               <NavLink
