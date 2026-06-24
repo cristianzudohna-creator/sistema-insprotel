@@ -122,7 +122,9 @@ const isAllHistory = location.pathname.includes("historial-todos");
     try {
       setLoading(true);
 
-      const endpoint = `${API_URL}/vehicle-checklist/finished`;
+      const endpoint = isAllHistory
+  ? `${API_URL}/vehicle-checklist/all`
+  : `${API_URL}/vehicle-checklist/finished`;
 
       const response = await fetch(endpoint, {
         headers: authHeaders(),
