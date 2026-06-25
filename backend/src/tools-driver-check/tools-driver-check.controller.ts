@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   Res,
   UploadedFiles,
@@ -105,13 +106,19 @@ export class ToolsDriverCheckController {
   }
 
   @Get(":id/pdf")
-  async previewPdf(
-    @Req() req: any,
-    @Param("id") id: string,
-    @Res() res: Response,
-  ) {
-    return this.toolsDriverCheckService.generatePdf(req.user, Number(id), res);
-  }
+async previewPdf(
+  @Req() req: any,
+  @Param("id") id: string,
+  @Query("download") download: string,
+  @Res() res: Response,
+) {
+  return this.toolsDriverCheckService.generatePdf(
+    req.user,
+    Number(id),
+    res,
+    download === "true",
+  );
+}
 
   @Delete(":id")
   async remove(@Req() req: any, @Param("id") id: string) {

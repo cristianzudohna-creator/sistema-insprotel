@@ -46,7 +46,15 @@ function authHeaders() {
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
-  return new Date(value).toLocaleDateString("es-CL");
+
+  return new Date(value).toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 function ToolsDriverCheckHistory() {
@@ -114,6 +122,40 @@ function ToolsDriverCheckHistory() {
       alert("Error abriendo PDF ❌");
     }
   }
+
+  async function downloadPdf(record) {
+  if (!record?.id) return;
+
+  try {
+    const response = await fetch(
+      `${API_URL}/tools-driver-check/${record.id}/pdf?download=true`,
+      {
+        headers: authHeaders(),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el PDF");
+    }
+
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${record.folio || "check-conductor"}.pdf`;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert("Error descargando PDF ❌");
+  }
+}
 
   function askDeleteRecord(record) {
     setRecordToDelete(record);
@@ -275,13 +317,22 @@ function ToolsDriverCheckHistory() {
                   </button>
 
                   <button
-                    className="tools-history-pdf-button"
-                    onClick={() => openPdfPreview(record)}
-                    type="button"
-                  >
-                    <FileDown size={17} />
-                    Vista previa PDF
-                  </button>
+  className="tools-history-pdf-button"
+  onClick={() => openPdfPreview(record)}
+  type="button"
+>
+  <FileDown size={17} />
+  Vista previa PDF
+</button>
+
+<button
+  className="tools-history-pdf-button"
+  onClick={() => downloadPdf(record)}
+  type="button"
+>
+  <FileDown size={17} />
+  Descargar PDF
+</button>
 
                   {(isSuperadmin || !isAllHistory) && (
                     <button
@@ -415,13 +466,22 @@ function ToolsDriverCheckHistory() {
 
             <div className="tools-detail-footer-actions">
               <button
-                type="button"
-                className="tools-history-pdf-button"
-                onClick={() => openPdfPreview(selectedRecord)}
-              >
-                <FileDown size={17} />
-                Vista previa PDF
-              </button>
+  type="button"
+  className="tools-history-pdf-button"
+  onClick={() => openPdfPreview(selectedRecord)}
+>
+  <FileDown size={17} />
+  Vista previa PDF
+</button>
+
+<button
+  type="button"
+  className="tools-history-pdf-button"
+  onClick={() => downloadPdf(selectedRecord)}
+>
+  <FileDown size={17} />
+  Descargar PDF
+</button>
 
               {(isSuperadmin || !isAllHistory) && (
                 <button

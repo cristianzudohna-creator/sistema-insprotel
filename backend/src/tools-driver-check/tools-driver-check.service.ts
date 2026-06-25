@@ -216,7 +216,12 @@ export class ToolsDriverCheckService {
     });
   }
 
-  async generatePdf(currentUser: any, id: number, res: Response) {
+async generatePdf(
+  currentUser: any,
+  id: number,
+  res: Response,
+  download = false,
+) {
     const check = await this.findOne(currentUser, id);
 
     const safeDriver = String(check.driverName || "conductor").replace(
@@ -227,10 +232,10 @@ export class ToolsDriverCheckService {
     const today = new Date().toLocaleDateString("es-CL").replace(/\//g, "-");
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="CHECKLIST_CONDUCTOR_${safeDriver}_${today}.pdf"`,
-    );
+res.setHeader(
+  "Content-Disposition",
+  `${download ? "attachment" : "inline"}; filename="CHECKLIST_CONDUCTOR_${safeDriver}_${today}.pdf"`,
+);
 
     const doc = new PDFDocument({
       size: "A4",

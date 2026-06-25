@@ -676,7 +676,7 @@ useEffect(() => {
       <div className="vehicle-signature-placeholder">
         <div>🔒</div>
         <strong>Firma deshabilitada</strong>
-        <span>Presiona habilitar firma para comenzar</span>
+        <span>Presiona el boton habilitar firma para comenzar</span>
       </div>
     )}
 

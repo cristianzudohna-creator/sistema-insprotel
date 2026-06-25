@@ -68,6 +68,18 @@ function getLoggedUser() {
   }
 }
 
+function getLoggedUserName() {
+  const user = getLoggedUser();
+
+  return (
+    user?.name ||
+    user?.fullName ||
+    user?.nombre ||
+    user?.displayName ||
+    "Usuario logueado"
+  );
+}
+
 function dataUrlToFile(dataUrl, filename) {
   const arr = dataUrl.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
@@ -95,7 +107,7 @@ function buildInitialItems() {
 
 function ToolsDriverCheck() {
   const navigate = useNavigate();
-  const loggedUser = getLoggedUser();
+  const loggedUserName = getLoggedUserName();
 
   const driverCanvasRef = useRef(null);
   const drawingRef = useRef(null);
@@ -104,6 +116,7 @@ function ToolsDriverCheck() {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const [hasDriverSignature, setHasDriverSignature] = useState(false);
+  const [signatureEnabled, setSignatureEnabled] = useState(false);
 
   const [form, setForm] = useState({
   contract: "",
@@ -256,8 +269,11 @@ const [showSupervisorList, setShowSupervisorList] = useState(false);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
-    if (type === "driver") setHasDriverSignature(false);
-  }
+    if (type === "driver") {
+  setHasDriverSignature(false);
+  setSignatureEnabled(true);
+}
+}
 
   function resetForm() {
     setForm({
@@ -273,6 +289,7 @@ const [showSupervisorList, setShowSupervisorList] = useState(false);
     setItems(buildInitialItems());
 
     clearSignature("driver");
+    setSignatureEnabled(false);
   }
 
   async function handleSubmit(e) {
@@ -583,33 +600,98 @@ const [showSupervisorList, setShowSupervisorList] = useState(false);
             Firmas
           </div>
 
-          <div className="driver-tools-signature-grid">
-            <div className="driver-tools-signature-box">
-              <h3>Firma Conductor</h3>
-
-              <canvas
-                ref={driverCanvasRef}
-                className="driver-tools-signature-canvas"
-                onMouseDown={(e) => startSignature(e, "driver")}
-                onMouseMove={(e) => drawSignature(e, "driver")}
-                onMouseUp={stopSignature}
-                onMouseLeave={stopSignature}
-                onTouchStart={(e) => startSignature(e, "driver")}
-                onTouchMove={(e) => drawSignature(e, "driver")}
-                onTouchEnd={stopSignature}
-              />
-
-              <button
-                type="button"
-                className="signature-clear-button"
-                onClick={() => clearSignature("driver")}
-              >
-                <RotateCcw size={16} />
-                Limpiar firma
-              </button>
-            </div>
-          </div>
+          <div style={{ width: "100%" }}>
+  <div
+    className={`vehicle-client-signature ${
+      hasDriverSignature ? "signed" : ""
+    }`}
+  >
+    <div className="vehicle-client-signature-header">
+      <div>
+        <div className="vehicle-client-signature-title">
+          <PenLine size={22} />
+          Firma del Conductor
         </div>
+
+        <h4>
+          Firma de {loggedUserName}
+          <span> (Conductor)</span>
+        </h4>
+
+        <p>
+          {signatureEnabled
+            ? "🔓 Firma habilitada"
+            : "🔒 Firma bloqueada (habilita antes de firmar)"}
+        </p>
+      </div>
+
+      <div className="vehicle-client-signature-actions">
+        <button
+          type="button"
+          className="vehicle-enable-signature-button"
+          onClick={() => setSignatureEnabled((prev) => !prev)}
+        >
+          <PenLine size={18} />
+          {signatureEnabled ? "Bloquear firma" : "Habilitar firma"}
+        </button>
+
+        <button
+          type="button"
+          className="vehicle-clear-signature-button"
+          onClick={() => clearSignature("driver")}
+          disabled={!hasDriverSignature}
+        >
+          <RotateCcw size={18} />
+          Limpiar
+        </button>
+      </div>
+    </div>
+
+    <div className="vehicle-signature-pad">
+      {!signatureEnabled && (
+        <div className="vehicle-signature-placeholder">
+          <div>🔒</div>
+          <strong>Firma deshabilitada</strong>
+          <span>Presiona el boton habilitar firma para comenzar</span>
+        </div>
+      )}
+
+      <canvas
+        ref={driverCanvasRef}
+        className="signature-canvas"
+        onMouseDown={
+          signatureEnabled ? (e) => startSignature(e, "driver") : undefined
+        }
+        onMouseMove={
+          signatureEnabled ? (e) => drawSignature(e, "driver") : undefined
+        }
+        onMouseUp={signatureEnabled ? stopSignature : undefined}
+        onMouseLeave={signatureEnabled ? stopSignature : undefined}
+        onTouchStart={
+          signatureEnabled ? (e) => startSignature(e, "driver") : undefined
+        }
+        onTouchMove={
+          signatureEnabled ? (e) => drawSignature(e, "driver") : undefined
+        }
+        onTouchEnd={signatureEnabled ? stopSignature : undefined}
+      />
+    </div>
+
+    <p className="vehicle-signature-help">
+      Habilita la firma y firma dentro del recuadro antes de guardar.
+    </p>
+
+    <div className="vehicle-signature-status">
+      Estado firma:{" "}
+      {hasDriverSignature ? (
+        <span className="ok">✅ Firma registrada</span>
+      ) : (
+        <span className="bad">❌ Falta firma</span>
+      )}
+    </div>
+   </div>
+</div>
+</div>
 
         <button
           type="submit"
