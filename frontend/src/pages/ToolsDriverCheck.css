@@ -308,3 +308,36 @@
     margin-bottom: 8px;
   }
 }
+.autocomplete-list {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.14);
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  padding: 12px 14px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}

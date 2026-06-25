@@ -292,3 +292,47 @@ body,
     overflow: visible;
   }
 }
+.menu-group {
+  width: 100%;
+}
+
+.menu-group-title {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  color: white;
+  font-weight: 700;
+}
+
+.menu-group-title::-webkit-details-marker {
+  display: none;
+}
+
+.menu-group-title:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-group[open] .menu-group-title {
+  background: rgba(37, 99, 235, 0.8);
+}
+
+.menu-subitem {
+  display: block;
+  margin-left: 42px;
+  margin-top: 6px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.menu-subitem:hover,
+.menu-subitem.active {
+  background: rgba(255, 255, 255, 0.14);
+}

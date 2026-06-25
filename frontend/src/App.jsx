@@ -101,6 +101,19 @@ function ToolsEppRoute({ children }) {
   return children;
 }
 
+function ToolsDriverRoute({ children }) {
+  const role = getRole();
+
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
+
+  if (!["SUPERADMIN", "SUPERVISOR", "PREVENCION", "CONDUCTOR"].includes(role)) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return children;
+}
+
 function AppRoutes() {
   return (
     <MainLayout>
@@ -285,31 +298,31 @@ function AppRoutes() {
 
         {/* HERRAMIENTAS CONDUCTOR */}
         <Route
-          path="/check-conductor"
-          element={
-            <SuperadminRoute>
-              <ToolsDriverCheck />
-            </SuperadminRoute>
-          }
-        />
+  path="/check-conductor"
+  element={
+    <ToolsDriverRoute>
+      <ToolsDriverCheck />
+    </ToolsDriverRoute>
+  }
+/>
 
         <Route
-          path="/check-conductor/historial"
-          element={
-            <SuperadminRoute>
-              <ToolsDriverCheckHistory />
-            </SuperadminRoute>
-          }
-        />
+  path="/check-conductor/historial"
+  element={
+    <ToolsDriverRoute>
+      <ToolsDriverCheckHistory />
+    </ToolsDriverRoute>
+  }
+/>
 
         <Route
-          path="/check-conductor/historial-todos"
-          element={
-            <SuperadminRoute>
-              <ToolsDriverCheckHistory />
-            </SuperadminRoute>
-          }
-        />
+  path="/check-conductor/historial-todos"
+  element={
+    <ToolsDriverRoute>
+      <ToolsDriverCheckHistory />
+    </ToolsDriverRoute>
+  }
+/>
 
         {/* USUARIOS */}
         <Route

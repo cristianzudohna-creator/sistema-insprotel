@@ -346,41 +346,82 @@ return created;
     };
 
     const drawHeader = () => {
-      const headerY = 18;
-      const headerH = 52;
-      const logoW = 165;
-      const titleW = contentWidth - logoW;
+  const headerY = 18;
+  const headerH = 48;
+  const logoW = 170;
+  const isoW = 130;
+  const titleW = contentWidth - logoW - isoW;
 
-      drawCell(margin, headerY, logoW, headerH, "");
+  const isoLogoCandidates = [
+    path.join(process.cwd(), "uploads", "branding", "sgs.png"),
+    path.join(process.cwd(), "uploads", "branding", "iso.png"),
+    path.join(process.cwd(), "uploads", "sgs.png"),
+  ];
 
-      if (logoPath) {
-        try {
-          doc.image(logoPath, margin + 12, headerY + 8, {
-            width: 140,
-            height: 36,
-          });
-        } catch {
-          doc
-            .font("Helvetica-Bold")
-            .fontSize(14)
-            .fillColor(black)
-            .text("INSPROTEL", margin + 18, headerY + 20);
-        }
-      }
+  const isoLogoPath = isoLogoCandidates.find((item) => fs.existsSync(item));
 
-      drawCell(margin + logoW, headerY, titleW, headerH, "");
+  drawCell(margin, headerY, logoW, headerH, "");
 
+  if (logoPath) {
+    try {
+      doc.image(logoPath, margin + 12, headerY + 7, {
+        width: 145,
+        height: 34,
+        fit: [145, 34],
+        align: "center",
+        valign: "center",
+      });
+    } catch {
       doc
         .font("Helvetica-Bold")
         .fontSize(14)
         .fillColor(black)
-        .text("LISTA DE CHEQUEO HERRAMIENTAS Y EPP", margin + logoW, headerY + 17, {
-          width: titleW,
+        .text("INSPROTEL", margin + 18, headerY + 18);
+    }
+  } else {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .fillColor(black)
+      .text("INSPROTEL", margin + 18, headerY + 18);
+  }
+
+  drawCell(margin + logoW, headerY, titleW, headerH, "");
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(15)
+    .fillColor(black)
+    .text("AUTOINSPECCION TECNICO CyR", margin + logoW, headerY + 15, {
+      width: titleW,
+      align: "center",
+    });
+
+  drawCell(margin + logoW + titleW, headerY, isoW, headerH, "");
+
+  if (isoLogoPath) {
+    try {
+      doc.image(isoLogoPath, margin + logoW + titleW + 8, headerY + 5, {
+        width: isoW - 16,
+        height: headerH - 10,
+        fit: [isoW - 16, headerH - 10],
+        align: "center",
+        valign: "center",
+      });
+    } catch {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(7)
+        .fillColor(black)
+        .text("ISO", margin + logoW + titleW, headerY + 18, {
+          width: isoW,
           align: "center",
         });
+    }
+  }
 
-      return headerY + headerH + 10;
-    };
+  return headerY + headerH + 12;
+};
 
     let y = drawHeader();
 

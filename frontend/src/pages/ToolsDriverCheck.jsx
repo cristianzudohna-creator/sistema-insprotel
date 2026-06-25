@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -19,36 +19,30 @@ const DRIVER_ITEMS = [
   "Geólogo azul insprotel",
   "Camisa insprotel",
   "Pantalón insprotel",
-  "Polar insprotel",
+  "Polar Insprotel",
   "Lente de seguridad",
   "Casco de seguridad",
   "Legionario",
   "Barbiquejo de casco",
-  "Guantes cabritilla corto",
-  "Parka insprotel",
-  "Gorro de lana insprotel",
+  "Guantes cabretilla corto",
+  "Parka Insprotel",
+  "Gorro de lana Insprotel",
   "Jockey Insprotel",
   "Credencial",
   "Cubre calzado de seguridad",
   "Traje de agua",
-  "Licencia de conducir al día",
-  "Permiso de circulación al día",
-  "Seguro obligatorio al día",
-  "Revisión técnica al día",
-  "Extintor con carga",
-  "Botiquín",
-  "Triángulo",
-  "Rueda de repuesto",
-  "Gata",
-  "Llave de ruedas",
-  "Estado de neumáticos",
-  "Estado de parabrisas y vidrios",
-  "Mantención al día",
-  "Kilometraje actual",
-  "Logos visibles en vehículo",
-  "Banderín de escala",
-  "Bolso para cordel de escala",
-  "Zapato de seguridad",
+  "Zapato de Seguridad",
+  "MOSQUETON (Y) AL 3T ANSI N-2852G-TR",
+  "ANCLAJE PORTATIL TIE OFF TUBULAR CESLI 25 MM X 0",
+  "CUERDA KORDAS SEMIEST BLANCA 11MM TITANIA11",
+  "DESCENDEDOR SKYLOTEC LORY PRO A-041",
+  "DESLIZADOR (K) ANTICAIDA ROKER CUERDA RG07",
+  "ANILLA PETZL ANNEAU ROJO 150 CM C40A_150",
+  "CUCHILLO PETZL SPATHA AMARILLO S92AY",
+  "ARNES DE SEGURIDAD",
+  "ESTROBO DE POSICIONAMIENTO",
+  "LINEA DE VIDA EN Y",
+  "BOLSO KITE DE RESCATE",
 ];
 
 function getToken() {
@@ -57,6 +51,21 @@ function getToken() {
     localStorage.getItem("token") ||
     ""
   );
+}
+
+function getLoggedUser() {
+  try {
+    const raw =
+      localStorage.getItem("user") ||
+      localStorage.getItem("me") ||
+      localStorage.getItem("profile");
+
+    if (!raw) return null;
+
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 function dataUrlToFile(dataUrl, filename) {
@@ -86,28 +95,56 @@ function buildInitialItems() {
 
 function ToolsDriverCheck() {
   const navigate = useNavigate();
+  const loggedUser = getLoggedUser();
 
   const driverCanvasRef = useRef(null);
-  const inspectorCanvasRef = useRef(null);
   const drawingRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const [hasDriverSignature, setHasDriverSignature] = useState(false);
-  const [hasInspectorSignature, setHasInspectorSignature] = useState(false);
 
   const [form, setForm] = useState({
-    contract: "",
-    driverName: "",
-    mobile: "",
-    heightExamExpiration: "",
-    supervisorInspectorName: "",
-    zone: "",
-    generalObservation: "",
-  });
+  contract: "",
+  mobile: "",
+  licenseExpiration: "",
+  supervisorInspectorName: "",
+  supervisorInspectorUserId: "",
+  zone: "",
+  generalObservation: "",
+});
 
   const [items, setItems] = useState(buildInitialItems());
+  useEffect(() => {
+  async function loadSupervisors() {
+    try {
+      const response = await fetch(`${API_URL}/users/workers`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      setSupervisors(
+  data.filter((u) => {
+    const userRole = String(u.role || "").toUpperCase();
+
+    return userRole === "SUPERVISOR" || userRole === "PREVENCION";
+  }),
+);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  loadSupervisors();
+}, []);
+  const [supervisors, setSupervisors] = useState([]);
+const [showSupervisorList, setShowSupervisorList] = useState(false);
 
   function updateField(field, value) {
     setForm((prev) => ({
@@ -166,8 +203,7 @@ function ToolsDriverCheck() {
   function startSignature(event, type) {
     event.preventDefault();
 
-    const canvas =
-      type === "driver" ? driverCanvasRef.current : inspectorCanvasRef.current;
+    const canvas = driverCanvasRef.current;
 
     if (!canvas) return;
 
@@ -201,7 +237,6 @@ function ToolsDriverCheck() {
     ctx.stroke();
 
     if (type === "driver") setHasDriverSignature(true);
-    if (type === "inspector") setHasInspectorSignature(true);
   }
 
   function stopSignature() {
@@ -222,34 +257,28 @@ function ToolsDriverCheck() {
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     if (type === "driver") setHasDriverSignature(false);
-    if (type === "inspector") setHasInspectorSignature(false);
   }
 
   function resetForm() {
     setForm({
-      contract: "",
-      driverName: "",
-      mobile: "",
-      heightExamExpiration: "",
-      supervisorInspectorName: "",
-      zone: "",
-      generalObservation: "",
-    });
+  contract: "",
+  mobile: "",
+  licenseExpiration: "",
+  supervisorInspectorName: "",
+  supervisorInspectorUserId: "",
+  zone: "",
+  generalObservation: "",
+});
 
     setItems(buildInitialItems());
 
     clearSignature("driver");
-    clearSignature("inspector");
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     try {
-      if (!form.driverName.trim()) {
-        alert("Debes ingresar el nombre del conductor.");
-        return;
-      }
 
       if (!form.supervisorInspectorName.trim()) {
         alert("Debes ingresar el nombre del supervisor / inspector.");
@@ -261,11 +290,6 @@ function ToolsDriverCheck() {
         return;
       }
 
-      if (!hasInspectorSignature) {
-        alert("Debes registrar la firma del supervisor / inspector.");
-        return;
-      }
-
       setLoading(true);
 
       const driverFile = dataUrlToFile(
@@ -273,21 +297,22 @@ function ToolsDriverCheck() {
         "firma-conductor.png",
       );
 
-      const inspectorFile = dataUrlToFile(
-        inspectorCanvasRef.current.toDataURL("image/png"),
-        "firma-inspector.png",
-      );
-
       const formData = new FormData();
 
       formData.append("contract", form.contract);
-      formData.append("driverName", form.driverName);
       formData.append("mobile", form.mobile);
-      formData.append("heightExamExpiration", form.heightExamExpiration);
+      formData.append(
+  "heightExamExpiration",
+  form.licenseExpiration,
+);
       formData.append(
         "supervisorInspectorName",
         form.supervisorInspectorName,
       );
+      formData.append(
+  "supervisorInspectorUserId",
+  form.supervisorInspectorUserId,
+);
       formData.append("zone", form.zone);
       formData.append("generalObservation", form.generalObservation);
 
@@ -305,7 +330,6 @@ function ToolsDriverCheck() {
       );
 
       formData.append("driverSignature", driverFile);
-      formData.append("inspectorSignature", inspectorFile);
 
       const response = await fetch(`${API_URL}/tools-driver-check`, {
         method: "POST",
@@ -376,15 +400,6 @@ function ToolsDriverCheck() {
             </div>
 
             <div className="field">
-              <label>Nombre Conductor</label>
-              <input
-                type="text"
-                value={form.driverName}
-                onChange={(e) => updateField("driverName", e.target.value)}
-              />
-            </div>
-
-            <div className="field">
               <label>Móvil</label>
               <input
                 type="text"
@@ -394,26 +409,61 @@ function ToolsDriverCheck() {
             </div>
 
             <div className="field">
-              <label>Vigencia examen de altura</label>
-              <input
-                type="date"
-                value={form.heightExamExpiration}
-                onChange={(e) =>
-                  updateField("heightExamExpiration", e.target.value)
-                }
-              />
+              <label>Vencimiento Licencia</label>
+
+<input
+  type="date"
+  value={form.licenseExpiration}
+  onChange={(e) =>
+    updateField("licenseExpiration", e.target.value)
+  }
+/>
             </div>
 
-            <div className="field">
-              <label>Supervisor / Inspector</label>
-              <input
-                type="text"
-                value={form.supervisorInspectorName}
-                onChange={(e) =>
-                  updateField("supervisorInspectorName", e.target.value)
-                }
-              />
+            <div className="field" style={{ position: "relative" }}>
+  <label>Supervisor / Inspector</label>
+
+  <input
+    type="text"
+    value={form.supervisorInspectorName}
+    placeholder="Escriba un nombre..."
+    onFocus={() => setShowSupervisorList(true)}
+    onChange={(e) => {
+      updateField("supervisorInspectorName", e.target.value);
+      updateField("supervisorInspectorUserId", "");
+      setShowSupervisorList(true);
+    }}
+  />
+
+  {showSupervisorList &&
+    form.supervisorInspectorName.trim() !== "" && (
+      <div className="autocomplete-list">
+        {supervisors
+          .filter((user) =>
+            user.name
+              .toLowerCase()
+              .includes(form.supervisorInspectorName.toLowerCase())
+          )
+          .map((user) => (
+            <div
+              key={user.id}
+              className="autocomplete-item"
+              onClick={() => {
+                setForm((prev) => ({
+                  ...prev,
+                  supervisorInspectorName: user.name,
+                  supervisorInspectorUserId: user.id,
+                }));
+
+                setShowSupervisorList(false);
+              }}
+            >
+              {user.name}
             </div>
+          ))}
+      </div>
+    )}
+</div>
 
             <div className="field">
               <label>Zona</label>
@@ -553,31 +603,6 @@ function ToolsDriverCheck() {
                 type="button"
                 className="signature-clear-button"
                 onClick={() => clearSignature("driver")}
-              >
-                <RotateCcw size={16} />
-                Limpiar firma
-              </button>
-            </div>
-
-            <div className="driver-tools-signature-box">
-              <h3>Firma Supervisor / Inspector</h3>
-
-              <canvas
-                ref={inspectorCanvasRef}
-                className="driver-tools-signature-canvas"
-                onMouseDown={(e) => startSignature(e, "inspector")}
-                onMouseMove={(e) => drawSignature(e, "inspector")}
-                onMouseUp={stopSignature}
-                onMouseLeave={stopSignature}
-                onTouchStart={(e) => startSignature(e, "inspector")}
-                onTouchMove={(e) => drawSignature(e, "inspector")}
-                onTouchEnd={stopSignature}
-              />
-
-              <button
-                type="button"
-                className="signature-clear-button"
-                onClick={() => clearSignature("inspector")}
               >
                 <RotateCcw size={16} />
                 Limpiar firma
