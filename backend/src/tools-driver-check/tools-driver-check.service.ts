@@ -173,22 +173,26 @@ export class ToolsDriverCheckService {
   }
 
   async findAllAdmin(currentUser: any) {
-    const user = await this.getLoggedUser(currentUser);
+  const user = await this.getLoggedUser(currentUser);
 
-    if (!this.isSuperadmin(user)) {
-      throw new ForbiddenException(
-        "Solo SUPERADMIN puede ver todos los check list conductor",
-      );
-    }
+  const role = String(user.role || "").toUpperCase();
 
-    return this.prisma.toolsDriverCheck.findMany({
-      include: {
-        items: true,
-        user: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+  if (
+    !["SUPERADMIN", "SUPERVISOR", "PREVENCION"].includes(role)
+  ) {
+    throw new ForbiddenException(
+      "No tienes permiso para ver todos los check list de conductor",
+    );
   }
+
+  return this.prisma.toolsDriverCheck.findMany({
+    include: {
+      items: true,
+      user: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
 
   async findOne(currentUser: any, id: number) {
     return this.canAccess(currentUser, id);
