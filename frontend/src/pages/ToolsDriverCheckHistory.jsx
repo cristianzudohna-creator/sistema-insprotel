@@ -62,7 +62,12 @@ function ToolsDriverCheckHistory() {
   const location = useLocation();
 
   const user = useMemo(() => getUser(), []);
-  const isSuperadmin = String(user?.role || "").toUpperCase() === "SUPERADMIN";
+  const role = String(user?.role || "").toUpperCase();
+
+const canSeeAll =
+  role === "SUPERADMIN" ||
+  role === "SUPERVISOR" ||
+  role === "PREVENCION";
   const isAllHistory = location.pathname.includes("historial-todos");
 
   const [records, setRecords] = useState([]);
@@ -201,11 +206,11 @@ function ToolsDriverCheckHistory() {
   }
 
   useEffect(() => {
-    if (isAllHistory && !isSuperadmin) {
-      alert("No tienes permiso para ver todos los check list de conductor");
-      navigate("/check-conductor/historial");
-      return;
-    }
+    if (isAllHistory && !canSeeAll) {
+  alert("No tienes permiso para ver todos los check list de conductor");
+  navigate("/check-conductor/historial");
+  return;
+}
 
     loadRecords();
   }, [isAllHistory]);
@@ -228,7 +233,7 @@ function ToolsDriverCheckHistory() {
         </div>
 
         <div className="tools-history-header-buttons">
-          {isSuperadmin && !isAllHistory && (
+          {canSeeAll && !isAllHistory && (
             <button
               type="button"
               className="tools-history-back-button"
@@ -334,7 +339,7 @@ function ToolsDriverCheckHistory() {
   Descargar PDF
 </button>
 
-                  {(isSuperadmin || !isAllHistory) && (
+                  {(canSeeAll || !isAllHistory) && (
                     <button
                       className="tools-history-delete-button"
                       onClick={() => askDeleteRecord(record)}
@@ -483,7 +488,7 @@ function ToolsDriverCheckHistory() {
   Descargar PDF
 </button>
 
-              {(isSuperadmin || !isAllHistory) && (
+              {(canSeeAll || !isAllHistory) && (
                 <button
                   type="button"
                   className="tools-history-delete-button"
