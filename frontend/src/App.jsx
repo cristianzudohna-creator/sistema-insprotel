@@ -107,9 +107,17 @@ function ToolsDriverRoute({ children }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
   if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
 
-  if (!["SUPERADMIN", "SUPERVISOR", "PREVENCION", "CONDUCTOR"].includes(role)) {
-    return <Navigate to="/inicio" replace />;
-  }
+  if (
+  ![
+    "SUPERADMIN",
+    "SUPERVISOR",
+    "PREVENCION",
+    "CONDUCTOR",
+    "TECNICO",
+  ].includes(role)
+) {
+  return <Navigate to="/inicio" replace />;
+}
 
   return children;
 }

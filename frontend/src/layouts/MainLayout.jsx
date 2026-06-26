@@ -51,7 +51,8 @@ function MainLayout({ children }) {
   role === "SUPERADMIN" ||
   role === "SUPERVISOR" ||
   role === "PREVENCION" ||
-  role === "CONDUCTOR";
+  role === "CONDUCTOR" ||
+  role === "TECNICO";
 
 const canSeeAllToolsDriver =
   role === "SUPERADMIN" ||
