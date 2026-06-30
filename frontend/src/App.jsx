@@ -24,6 +24,9 @@ import ToolsEppCheck from "./pages/ToolsEppCheck";
 import ToolsEppCheckHistory from "./pages/ToolsEppCheckHistory";
 import ToolsDriverCheck from "./pages/ToolsDriverCheck";
 import ToolsDriverCheckHistory from "./pages/ToolsDriverCheckHistory";
+import IncidentReport from "./pages/IncidentReport";
+import MyIncidentReports from "./pages/MyIncidentReports";
+import IncidentReportHistory from "./pages/IncidentReportHistory";
 
 import {
   isLoggedIn,
@@ -65,12 +68,16 @@ function VehicleChecklistRoute({ children }) {
   if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
 
   if (
-  !["SUPERADMIN", "SUPERVISOR", "PREVENCION", "CONDUCTOR", "TECNICO"].includes(
-    role,
-  )
-) {
-  return <Navigate to="/inicio" replace />;
-}
+    ![
+      "SUPERADMIN",
+      "SUPERVISOR",
+      "PREVENCION",
+      "CONDUCTOR",
+      "TECNICO",
+    ].includes(role)
+  ) {
+    return <Navigate to="/inicio" replace />;
+  }
 
   return children;
 }
@@ -108,16 +115,50 @@ function ToolsDriverRoute({ children }) {
   if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
 
   if (
-  ![
-    "SUPERADMIN",
-    "SUPERVISOR",
-    "PREVENCION",
-    "CONDUCTOR",
-    "TECNICO",
-  ].includes(role)
-) {
-  return <Navigate to="/inicio" replace />;
+    ![
+      "SUPERADMIN",
+      "SUPERVISOR",
+      "PREVENCION",
+      "CONDUCTOR",
+      "TECNICO",
+    ].includes(role)
+  ) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return children;
 }
+
+function IncidentRoute({ children }) {
+  const role = getRole();
+
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
+
+  if (
+    ![
+      "SUPERADMIN",
+      "SUPERVISOR",
+      "PREVENCION",
+      "CONDUCTOR",
+      "TECNICO",
+    ].includes(role)
+  ) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return children;
+}
+
+function IncidentHistoryRoute({ children }) {
+  const role = getRole();
+
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
+
+  if (!["SUPERADMIN", "PREVENCION"].includes(role)) {
+    return <Navigate to="/inicio" replace />;
+  }
 
   return children;
 }
@@ -278,59 +319,87 @@ function AppRoutes() {
 
         {/* HERRAMIENTAS TECNICO */}
         <Route
-  path="/check-herramientas"
-  element={
-    <ToolsEppRoute>
-      <ToolsEppCheck />
-    </ToolsEppRoute>
-  }
-/>
+          path="/check-herramientas"
+          element={
+            <ToolsEppRoute>
+              <ToolsEppCheck />
+            </ToolsEppRoute>
+          }
+        />
 
         <Route
-  path="/check-herramientas/historial"
-  element={
-    <ToolsEppRoute>
-      <ToolsEppCheckHistory />
-    </ToolsEppRoute>
-  }
-/>
+          path="/check-herramientas/historial"
+          element={
+            <ToolsEppRoute>
+              <ToolsEppCheckHistory />
+            </ToolsEppRoute>
+          }
+        />
 
         <Route
-  path="/check-herramientas/historial-todos"
-  element={
-    <ToolsEppRoute>
-      <ToolsEppCheckHistory />
-    </ToolsEppRoute>
-  }
-/>
+          path="/check-herramientas/historial-todos"
+          element={
+            <ToolsEppRoute>
+              <ToolsEppCheckHistory />
+            </ToolsEppRoute>
+          }
+        />
 
         {/* HERRAMIENTAS CONDUCTOR */}
         <Route
-  path="/check-conductor"
-  element={
-    <ToolsDriverRoute>
-      <ToolsDriverCheck />
-    </ToolsDriverRoute>
-  }
-/>
+          path="/check-conductor"
+          element={
+            <ToolsDriverRoute>
+              <ToolsDriverCheck />
+            </ToolsDriverRoute>
+          }
+        />
 
         <Route
-  path="/check-conductor/historial"
-  element={
-    <ToolsDriverRoute>
-      <ToolsDriverCheckHistory />
-    </ToolsDriverRoute>
-  }
-/>
+          path="/check-conductor/historial"
+          element={
+            <ToolsDriverRoute>
+              <ToolsDriverCheckHistory />
+            </ToolsDriverRoute>
+          }
+        />
 
         <Route
-  path="/check-conductor/historial-todos"
-  element={
-    <ToolsDriverRoute>
-      <ToolsDriverCheckHistory />
-    </ToolsDriverRoute>
-  }
-/>
+          path="/check-conductor/historial-todos"
+          element={
+            <ToolsDriverRoute>
+              <ToolsDriverCheckHistory />
+            </ToolsDriverRoute>
+          }
+        />
+
+        {/* INCIDENTES / HALLAZGOS */}
+        <Route
+          path="/incidentes"
+          element={
+            <IncidentRoute>
+              <IncidentReport />
+            </IncidentRoute>
+          }
+        />
+
+        <Route
+          path="/incidentes/mis-reportes"
+          element={
+            <IncidentRoute>
+              <MyIncidentReports />
+            </IncidentRoute>
+          }
+        />
+
+        <Route
+          path="/incidentes/historial"
+          element={
+            <IncidentHistoryRoute>
+              <IncidentReportHistory />
+            </IncidentHistoryRoute>
+          }
+        />
 
         {/* USUARIOS */}
         <Route

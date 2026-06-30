@@ -18,11 +18,11 @@ async function bootstrap() {
   });
 
   app.use(
-    "/uploads",
-    express.static(
-      join(__dirname, "..", "uploads"),
-    ),
-  );
+  "/uploads",
+  express.static(
+    join(process.cwd(), "uploads"),
+  ),
+);
 
   await app.listen(process.env.PORT ?? 3000);
 }

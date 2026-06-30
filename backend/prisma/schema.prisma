@@ -109,6 +109,22 @@ enum SafetyTalkCreatorRole {
   PREVENCION
 }
 
+enum IncidentEventType {
+  INCIDENTE
+  HALLAZGO
+}
+
+enum IncidentCategory {
+  LABORAL
+  INDUSTRIAL
+}
+
+enum IncidentStatus {
+  REPORTADO
+  EN_REVISION
+  SOLUCIONADO
+}
+
 model User {
   id       Int     @id @default(autoincrement())
   rut      String? @unique
@@ -123,16 +139,20 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vehicleChecks             VehicleCheckList[]
-  safetyTalks               SafetyTalk[]
-  safetyTalkParticipations  SafetyTalkParticipant[]
-  harnessChecks             HarnessCheck[]
-  ladderChecks              LadderCheck[]
-  scissorLadderChecks       ScissorLadderCheck[]
-  toolsEppChecks            ToolsEppCheck[]
-  toolsDriverChecks         ToolsDriverCheck[]
-  notifications             Notification[]
-  fcmTokens                 UserFcmToken[]
+  vehicleChecks            VehicleCheckList[]
+  safetyTalks              SafetyTalk[]
+  safetyTalkParticipations SafetyTalkParticipant[]
+  harnessChecks            HarnessCheck[]
+  ladderChecks             LadderCheck[]
+  scissorLadderChecks      ScissorLadderCheck[]
+  toolsEppChecks           ToolsEppCheck[]
+  toolsDriverChecks        ToolsDriverCheck[]
+  notifications            Notification[]
+  fcmTokens                UserFcmToken[]
+
+  incidentReports         IncidentReport[]
+  reviewedIncidentReports IncidentReport[] @relation("IncidentReviewedBy")
+  solvedIncidentReports IncidentReport[] @relation("IncidentSolvedBy")
 }
 
 model Vehicle {
@@ -594,4 +614,71 @@ model UserFcmToken {
 
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+model IncidentReport {
+  id Int @id @default(autoincrement())
+
+  folio String?
+
+  eventType IncidentEventType
+  category IncidentCategory
+
+  address String?
+  commune String?
+
+  date DateTime @default(now())
+
+  area String?
+  company String?
+
+  description String @db.Text
+
+  cgedNumber String?
+  supervisor String?
+  cgeResponsible String?
+  prodityNumber String?
+
+  hasPhotographs Boolean @default(false)
+  notifiedSupervisor Boolean @default(false)
+
+  reporterName String
+  brigadeNumber String?
+
+  vehiclePatent String?
+
+  phone String?
+  rut String?
+
+  status IncidentStatus @default(REPORTADO)
+
+  reviewedAt DateTime?
+
+reviewedById Int?
+reviewedBy User? @relation("IncidentReviewedBy", fields: [reviewedById], references: [id])
+
+solvedAt DateTime?
+
+solvedById Int?
+solvedBy User? @relation("IncidentSolvedBy", fields: [solvedById], references: [id])
+
+solutionDescription String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int
+  user User @relation(fields: [userId], references: [id])
+
+  photos IncidentReportPhoto[]
+}
+
+model IncidentReportPhoto {
+  id Int @id @default(autoincrement())
+
+  imageUrl String
+
+  createdAt DateTime @default(now())
+
+  incidentReportId Int
+  incidentReport IncidentReport @relation(fields: [incidentReportId], references: [id], onDelete: Cascade)
 }

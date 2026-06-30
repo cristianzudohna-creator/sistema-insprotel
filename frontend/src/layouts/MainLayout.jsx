@@ -20,7 +20,6 @@ import {
   Shield,
   ClipboardCheck,
   HardHat,
-  PenLine,
   Home,
 } from "lucide-react";
 
@@ -47,34 +46,37 @@ function MainLayout({ children }) {
 
   const isSuperadmin = role === "SUPERADMIN";
 
-  const canUseToolsDriver =
-  role === "SUPERADMIN" ||
-  role === "SUPERVISOR" ||
-  role === "PREVENCION" ||
-  role === "CONDUCTOR" ||
-  role === "TECNICO";
+  const canUseIncidents =
+    role === "SUPERADMIN" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION" ||
+    role === "TECNICO" ||
+    role === "CONDUCTOR";
 
-const canSeeAllToolsDriver =
-  role === "SUPERADMIN" ||
-  role === "SUPERVISOR" ||
-  role === "PREVENCION";
+  const canSeeAllIncidents = role === "SUPERADMIN" || role === "PREVENCION";
+
+  const canUseToolsDriver =
+    role === "SUPERADMIN" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION" ||
+    role === "CONDUCTOR" ||
+    role === "TECNICO";
+
+  const canSeeAllToolsDriver =
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
   const canSeeAllVehicleChecks =
-  role === "SUPERADMIN" ||
-  role === "SUPERVISOR" ||
-  role === "PREVENCION";
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
-const canSeeAllHarnessChecks =
-  role === "SUPERADMIN" ||
-  role === "SUPERVISOR" ||
-  role === "PREVENCION";
+  const canSeeAllHarnessChecks =
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
   const canUseVehicleCheck =
-  role === "SUPERADMIN" ||
-  role === "SUPERVISOR" ||
-  role === "PREVENCION" ||
-  role === "CONDUCTOR" ||
-  role === "TECNICO";
+    role === "SUPERADMIN" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION" ||
+    role === "CONDUCTOR" ||
+    role === "TECNICO";
 
   const canCreateSafetyTalks =
     role === "SUPERADMIN" ||
@@ -98,16 +100,15 @@ const canSeeAllHarnessChecks =
     role === "TECNICO";
 
   const canReviewHarnessFinished = canSignHarnessCheck;
-  const canUseToolsEpp =
-  role === "SUPERADMIN" ||
-  role === "SUPERVISOR" ||
-  role === "PREVENCION" ||
-  role === "TECNICO";
 
-const canSeeAllToolsEpp =
-  role === "SUPERADMIN" ||
-  role === "SUPERVISOR" ||
-  role === "PREVENCION";
+  const canUseToolsEpp =
+    role === "SUPERADMIN" ||
+    role === "SUPERVISOR" ||
+    role === "PREVENCION" ||
+    role === "TECNICO";
+
+  const canSeeAllToolsEpp =
+    role === "SUPERADMIN" || role === "SUPERVISOR" || role === "PREVENCION";
 
   function closeMenu() {
     setMenuOpen(false);
@@ -138,283 +139,330 @@ const canSeeAllToolsEpp =
         <div className="menu-title">MENÚ PRINCIPAL</div>
 
         <nav className="menu">
-  <NavLink
-    to="/inicio"
-    onClick={closeMenu}
-    className={({ isActive }) =>
-      isActive ? "menu-item active-link" : "menu-item"
-    }
-  >
-    <Home size={20} />
-    <span>Inicio</span>
-  </NavLink>
-
-  {isSuperadmin && (
-    <NavLink
-      to="/dashboard"
-      onClick={closeMenu}
-      className={({ isActive }) =>
-        isActive ? "menu-item active-link" : "menu-item"
-      }
-    >
-      <LayoutDashboard size={20} />
-      <span>Dashboard</span>
-    </NavLink>
-  )}
-
-  {(canCreateSafetyTalks || canSignSafetyTalks || canReviewSafetyTalks) && (
-    <details className="menu-group">
-      <summary className="menu-group-title">
-        <ShieldCheck size={20} />
-        <span>Check List Charlas de Seguridad</span>
-      </summary>
-
-      {canCreateSafetyTalks && (
-        <NavLink to="/charlas" onClick={closeMenu} className="menu-subitem">
-          Crear Charla
-        </NavLink>
-      )}
-
-      {canSignSafetyTalks && (
-        <NavLink
-          to="/charlas/pendientes"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Pendientes de Firma
-        </NavLink>
-      )}
-
-      {canReviewSafetyTalks && (
-        <NavLink
-          to="/charlas/historial-todos"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Charlas Terminadas
-        </NavLink>
-      )}
-    </details>
-  )}
-
-  {(canUseVehicleCheck || canSeeAllVehicleChecks) && (
-    <details className="menu-group">
-      <summary className="menu-group-title">
-        <Car size={20} />
-        <span>Check List Vehículos</span>
-      </summary>
-
-      {canUseVehicleCheck && (
-        <>
           <NavLink
-            to="/check-vehiculos"
+            to="/inicio"
             onClick={closeMenu}
-            className="menu-subitem"
+            className={({ isActive }) =>
+              isActive ? "menu-item active-link" : "menu-item"
+            }
           >
-            Crear Check List
+            <Home size={20} />
+            <span>Inicio</span>
           </NavLink>
 
-          <NavLink
-            to="/check-vehiculos/pendientes-firma"
-            onClick={closeMenu}
-            className="menu-subitem"
-          >
-            Firmas Pendientes
-          </NavLink>
+          {isSuperadmin && (
+            <NavLink
+              to="/dashboard"
+              onClick={closeMenu}
+              className={({ isActive }) =>
+                isActive ? "menu-item active-link" : "menu-item"
+              }
+            >
+              <LayoutDashboard size={20} />
+              <span>Dashboard</span>
+            </NavLink>
+          )}
 
-          <NavLink
-            to="/check-vehiculos/historial"
-            onClick={closeMenu}
-            className="menu-subitem"
-          >
-            Mis Check List
-          </NavLink>
-        </>
-      )}
+          {(canCreateSafetyTalks ||
+            canSignSafetyTalks ||
+            canReviewSafetyTalks) && (
+            <details className="menu-group">
+              <summary className="menu-group-title">
+                <ShieldCheck size={20} />
+                <span>Check List Charlas de Seguridad</span>
+              </summary>
 
-      {canSeeAllVehicleChecks && (
-        <NavLink
-          to="/check-vehiculos/historial-todos"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Check List Terminados
-        </NavLink>
-      )}
-    </details>
-  )}
+              {canCreateSafetyTalks && (
+                <NavLink
+                  to="/charlas"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Crear Charla
+                </NavLink>
+              )}
 
-  {(canCreateHarnessCheck ||
-    canSignHarnessCheck ||
-    canReviewHarnessFinished ||
-    canSeeAllHarnessChecks) && (
-    <details className="menu-group">
-      <summary className="menu-group-title">
-        <Shield size={20} />
-        <span>Check List Arnés</span>
-      </summary>
+              {canSignSafetyTalks && (
+                <NavLink
+                  to="/charlas/pendientes"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Pendientes de Firma
+                </NavLink>
+              )}
 
-      {canCreateHarnessCheck && (
-        <NavLink to="/arnes" onClick={closeMenu} className="menu-subitem">
-          Crear Check List
-        </NavLink>
-      )}
+              {canReviewSafetyTalks && (
+                <NavLink
+                  to="/charlas/historial-todos"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Charlas Terminadas
+                </NavLink>
+              )}
+            </details>
+          )}
 
-      {canSignHarnessCheck && (
-        <NavLink
-          to="/arnes/pendientes-firma"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Firmas Pendientes
-        </NavLink>
-      )}
+          {(canUseVehicleCheck || canSeeAllVehicleChecks) && (
+            <details className="menu-group">
+              <summary className="menu-group-title">
+                <Car size={20} />
+                <span>Check List Vehículos</span>
+              </summary>
 
-      {canReviewHarnessFinished && (
-        <NavLink
-          to="/arnes/historial"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Mis Check List
-        </NavLink>
-      )}
+              {canUseVehicleCheck && (
+                <>
+                  <NavLink
+                    to="/check-vehiculos"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Crear Check List
+                  </NavLink>
 
-      {canSeeAllHarnessChecks && (
-        <NavLink
-          to="/arnes/historial-todos"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Check List Terminados
-        </NavLink>
-      )}
-    </details>
-  )}
+                  <NavLink
+                    to="/check-vehiculos/pendientes-firma"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Firmas Pendientes
+                  </NavLink>
 
-  {(canUseToolsEpp || canSeeAllToolsEpp) && (
-    <details className="menu-group">
-      <summary className="menu-group-title">
-        <Wrench size={20} />
-        <span>Autoinspección Técnico</span>
-      </summary>
+                  <NavLink
+                    to="/check-vehiculos/historial"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Mis Check List
+                  </NavLink>
+                </>
+              )}
 
-      {canUseToolsEpp && (
-        <>
-          <NavLink
-            to="/check-herramientas"
-            onClick={closeMenu}
-            className="menu-subitem"
-          >
-            Crear Autoinspección
-          </NavLink>
+              {canSeeAllVehicleChecks && (
+                <NavLink
+                  to="/check-vehiculos/historial-todos"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Check List Terminados
+                </NavLink>
+              )}
+            </details>
+          )}
 
-          <NavLink
-            to="/check-herramientas/historial"
-            onClick={closeMenu}
-            className="menu-subitem"
-          >
-            Mis Autoinspecciones
-          </NavLink>
-        </>
-      )}
+          {(canCreateHarnessCheck ||
+            canSignHarnessCheck ||
+            canReviewHarnessFinished ||
+            canSeeAllHarnessChecks) && (
+            <details className="menu-group">
+              <summary className="menu-group-title">
+                <Shield size={20} />
+                <span>Check List Arnés</span>
+              </summary>
 
-      {canSeeAllToolsEpp && (
-        <NavLink
-          to="/check-herramientas/historial-todos"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Autoinspecciones Terminadas
-        </NavLink>
-      )}
-    </details>
-  )}
+              {canCreateHarnessCheck && (
+                <NavLink
+                  to="/arnes"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Crear Check List
+                </NavLink>
+              )}
 
-  {(canUseToolsDriver || canSeeAllToolsDriver) && (
-  <details className="menu-group">
-    <summary className="menu-group-title">
-      <HardHat size={20} />
-      <span>Autoinspección Conductor</span>
-    </summary>
+              {canSignHarnessCheck && (
+                <NavLink
+                  to="/arnes/pendientes-firma"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Firmas Pendientes
+                </NavLink>
+              )}
 
-    {canUseToolsDriver && (
-      <>
-        <NavLink
-          to="/check-conductor"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Crear Autoinspección
-        </NavLink>
+              {canReviewHarnessFinished && (
+                <NavLink
+                  to="/arnes/historial"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Mis Check List
+                </NavLink>
+              )}
 
-        <NavLink
-          to="/check-conductor/historial"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Mis Autoinspecciones
-        </NavLink>
-      </>
-    )}
+              {canSeeAllHarnessChecks && (
+                <NavLink
+                  to="/arnes/historial-todos"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Check List Terminados
+                </NavLink>
+              )}
+            </details>
+          )}
 
-    {canSeeAllToolsDriver && (
-      <NavLink
-        to="/check-conductor/historial-todos"
-        onClick={closeMenu}
-        className="menu-subitem"
-      >
-        Autoinspecciones Terminadas
-      </NavLink>
-    )}
-  </details>
-)}
+          {(canUseToolsEpp || canSeeAllToolsEpp) && (
+            <details className="menu-group">
+              <summary className="menu-group-title">
+                <Wrench size={20} />
+                <span>Autoinspección Técnico</span>
+              </summary>
 
-  {isSuperadmin && (
-    <>
-      
+              {canUseToolsEpp && (
+                <>
+                  <NavLink
+                    to="/check-herramientas"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Crear Autoinspección
+                  </NavLink>
 
-      <details className="menu-group">
-        <summary className="menu-group-title">
-          <ClipboardCheck size={20} />
-          <span>Check List Escaleras Tijera</span>
-        </summary>
+                  <NavLink
+                    to="/check-herramientas/historial"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Mis Autoinspecciones
+                  </NavLink>
+                </>
+              )}
 
-        <NavLink
-          to="/escaleras-tijera"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Crear Check List
-        </NavLink>
+              {canSeeAllToolsEpp && (
+                <NavLink
+                  to="/check-herramientas/historial-todos"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Autoinspecciones Terminadas
+                </NavLink>
+              )}
+            </details>
+          )}
 
-        <NavLink
-          to="/escaleras-tijera/historial-todos"
-          onClick={closeMenu}
-          className="menu-subitem"
-        >
-          Historial
-        </NavLink>
-      </details>
+          {(canUseToolsDriver || canSeeAllToolsDriver) && (
+            <details className="menu-group">
+              <summary className="menu-group-title">
+                <HardHat size={20} />
+                <span>Autoinspección Conductor</span>
+              </summary>
 
-      <NavLink
-        to="/usuarios"
-        onClick={closeMenu}
-        className={({ isActive }) =>
-          isActive ? "menu-item active-link" : "menu-item"
-        }
-      >
-        <UserCog size={20} />
-        <span>Usuarios</span>
-      </NavLink>
-    </>
-  )}
+              {canUseToolsDriver && (
+                <>
+                  <NavLink
+                    to="/check-conductor"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Crear Autoinspección
+                  </NavLink>
 
-  <button className="logout-button" onClick={handleLogout} type="button">
-    <LogOut size={18} />
-    <span>Cerrar Sesión</span>
-  </button>
-</nav>
+                  <NavLink
+                    to="/check-conductor/historial"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Mis Autoinspecciones
+                  </NavLink>
+                </>
+              )}
+
+              {canSeeAllToolsDriver && (
+                <NavLink
+                  to="/check-conductor/historial-todos"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Autoinspecciones Terminadas
+                </NavLink>
+              )}
+            </details>
+          )}
+
+          {(canUseIncidents || canSeeAllIncidents) && (
+            <details className="menu-group">
+              <summary className="menu-group-title">
+                <FileText size={20} />
+                <span>Incidentes / Hallazgos</span>
+              </summary>
+
+              {canUseIncidents && (
+                <>
+                  <NavLink
+                    to="/incidentes"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Crear Reporte
+                  </NavLink>
+
+                  <NavLink
+                    to="/incidentes/mis-reportes"
+                    onClick={closeMenu}
+                    className="menu-subitem"
+                  >
+                    Mis Reportes
+                  </NavLink>
+                </>
+              )}
+
+              {canSeeAllIncidents && (
+                <NavLink
+                  to="/incidentes/historial"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Historial General
+                </NavLink>
+              )}
+            </details>
+          )}
+
+          {isSuperadmin && (
+            <>
+              <details className="menu-group">
+                <summary className="menu-group-title">
+                  <ClipboardCheck size={20} />
+                  <span>Check List Escaleras Tijera</span>
+                </summary>
+
+                <NavLink
+                  to="/escaleras-tijera"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Crear Check List
+                </NavLink>
+
+                <NavLink
+                  to="/escaleras-tijera/historial-todos"
+                  onClick={closeMenu}
+                  className="menu-subitem"
+                >
+                  Historial
+                </NavLink>
+              </details>
+
+              <NavLink
+                to="/usuarios"
+                onClick={closeMenu}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active-link" : "menu-item"
+                }
+              >
+                <UserCog size={20} />
+                <span>Usuarios</span>
+              </NavLink>
+            </>
+          )}
+
+          <button className="logout-button" onClick={handleLogout} type="button">
+            <LogOut size={18} />
+            <span>Cerrar Sesión</span>
+          </button>
+        </nav>
       </aside>
 
       <div className="main-area">
