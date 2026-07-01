@@ -19,7 +19,10 @@ import { useNavigate } from "react-router-dom";
 import { getUser } from "../auth/auth";
 import "./Home.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "/api";
 
 function getToken() {
   return (

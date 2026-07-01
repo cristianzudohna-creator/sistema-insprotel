@@ -3,7 +3,10 @@ import { Camera, CheckCircle2, FileText, User, X } from "lucide-react";
 
 import "./IncidentDetailModal.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "/api";
 
 function text(value) {
   if (value === null || value === undefined || value === "") return "—";
