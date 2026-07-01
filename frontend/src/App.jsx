@@ -61,6 +61,19 @@ function SuperadminRoute({ children }) {
   return children;
 }
 
+function ReviewRoute({ children }) {
+  const role = getRole();
+
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (mustChangePassword()) return <Navigate to="/cambiar-password" replace />;
+
+  if (!["SUPERADMIN", "SUPERVISOR", "PREVENCION"].includes(role)) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return children;
+}
+
 function VehicleChecklistRoute({ children }) {
   const role = getRole();
 
@@ -209,9 +222,9 @@ function AppRoutes() {
         <Route
           path="/check-vehiculos/historial-todos"
           element={
-            <SuperadminRoute>
+            <ReviewRoute>
               <VehicleCheckHistory />
-            </SuperadminRoute>
+            </ReviewRoute>
           }
         />
 
@@ -222,7 +235,15 @@ function AppRoutes() {
           path="/charlas/pendientes"
           element={<SafetyTalkPendingSignatures />}
         />
-        <Route path="/charlas/historial-todos" element={<SafetyTalkHistory />} />
+
+        <Route
+          path="/charlas/historial-todos"
+          element={
+            <ReviewRoute>
+              <SafetyTalkHistory />
+            </ReviewRoute>
+          }
+        />
 
         {/* ARNES */}
         <Route
@@ -255,9 +276,9 @@ function AppRoutes() {
         <Route
           path="/arnes/historial-todos"
           element={
-            <SuperadminRoute>
+            <ReviewRoute>
               <HarnessCheckHistory />
-            </SuperadminRoute>
+            </ReviewRoute>
           }
         />
 

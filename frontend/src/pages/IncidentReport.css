@@ -266,14 +266,12 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 50;
-  background: #ffffff;
+  z-index: 9999;
+  background: white;
   border: 1px solid #d1d5db;
   border-radius: 14px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
   overflow: hidden;
-  max-height: 260px;
-  overflow-y: auto;
 }
 
 .vehicle-option {
@@ -369,4 +367,11 @@
 
 .incident-photo-buttons label:hover {
   background: #eff6ff;
+}
+@media (max-width: 768px) {
+  .vehicle-options {
+    position: relative;
+    top: 6px;
+    margin-bottom: 16px;
+  }
 }
