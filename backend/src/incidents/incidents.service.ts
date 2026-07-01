@@ -196,6 +196,12 @@ export class IncidentsService {
       throw new BadRequestException("La descripción es obligatoria");
     }
 
+    const selectedPreventionUserId = Number(data.preventionUserId || 0);
+
+if (!selectedPreventionUserId) {
+  throw new BadRequestException("Debe seleccionar un prevencionista");
+}
+
     const lastReport = await this.prisma.incidentReport.findFirst({
       orderBy: {
         id: "desc",
@@ -247,6 +253,7 @@ export class IncidentsService {
         rut: data.rut || user.rut || null,
 
         userId: user.id,
+        preventionUserId: Number(data.preventionUserId || 0) || null,
 
         photos: {
           create: photos.map((photo) => ({
@@ -257,7 +264,20 @@ export class IncidentsService {
       include: this.includeData(),
     });
 
-    await this.notifyPreventionUsers(created, user);
+await this.notificationsService.create(
+  selectedPreventionUserId,
+  "Nuevo Incidente / Hallazgo",
+  `${user.name} registró un nuevo ${
+    created.eventType === "HALLAZGO"
+      ? "hallazgo"
+      : "incidente"
+  }${created.folio ? ` (${created.folio})` : ""}.${
+    created.vehiclePatent
+      ? ` Patente: ${created.vehiclePatent}.`
+      : ""
+  }`,
+  "/incidentes/historial",
+);
 
     return created;
   }
@@ -697,9 +717,25 @@ export class IncidentsService {
   return this.prisma.user.findMany({
     where: {
       isActive: true,
-      role: {
-        in: ["SUPERVISOR", "PREVENCION"],
-      },
+      role: "SUPERVISOR",
+    },
+    orderBy: {
+      name: "asc",
+    },
+    select: {
+      id: true,
+      name: true,
+      rut: true,
+      role: true,
+    },
+  });
+}
+
+async findPreventionUsers() {
+  return this.prisma.user.findMany({
+    where: {
+      isActive: true,
+      role: "PREVENCION",
     },
     orderBy: {
       name: "asc",

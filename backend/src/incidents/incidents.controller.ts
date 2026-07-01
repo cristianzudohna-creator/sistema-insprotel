@@ -86,6 +86,11 @@ async findSupervisors() {
   return this.incidentsService.findSupervisors();
 }
 
+@Get("prevention-users")
+  async findPreventionUsers() {
+    return this.incidentsService.findPreventionUsers();
+  }
+
   @Get(":id")
   async findOne(@Req() req: any, @Param("id") id: string) {
     return this.incidentsService.findOne(req.user, Number(id));

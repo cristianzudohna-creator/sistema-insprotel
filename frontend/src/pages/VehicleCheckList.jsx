@@ -1195,7 +1195,7 @@ setSignatureEnabled(true);
       <div className="vehicle-signature-placeholder">
         <div>🔒</div>
         <strong>Firma deshabilitada</strong>
-        <span>Toca aquí para habilitar y que el cliente firme</span>
+        <span>Toca el boton para habilitar firma</span>
       </div>
     )}
 

@@ -153,6 +153,7 @@ model User {
   incidentReports         IncidentReport[]
   reviewedIncidentReports IncidentReport[] @relation("IncidentReviewedBy")
   solvedIncidentReports IncidentReport[] @relation("IncidentSolvedBy")
+  assignedIncidentReports  IncidentReport[] @relation("IncidentAssignedPrevention")
 }
 
 model Vehicle {
@@ -660,6 +661,8 @@ solvedAt DateTime?
 
 solvedById Int?
 solvedBy User? @relation("IncidentSolvedBy", fields: [solvedById], references: [id])
+preventionUserId Int?
+preventionUser User? @relation("IncidentAssignedPrevention", fields: [preventionUserId], references: [id])
 
 solutionDescription String? @db.Text
 

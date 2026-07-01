@@ -346,3 +346,27 @@
 .success-confirm-button:hover {
   background: #15803d;
 }
+.incident-upload input[type="file"] {
+  display: none;
+}
+
+.incident-photo-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.incident-photo-buttons label {
+  border: 2px solid #111827;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: white;
+  color: #2563eb;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.incident-photo-buttons label:hover {
+  background: #eff6ff;
+}

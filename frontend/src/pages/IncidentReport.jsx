@@ -42,6 +42,8 @@ const initialForm = {
   description: "",
   cgedNumber: "",
   supervisor: "",
+  preventionUserId: "",
+  preventionName: "",
   cgeResponsible: "",
   prodityNumber: "",
   hasPhotographs: "NO",
@@ -72,6 +74,10 @@ function IncidentReport() {
   const [supervisorOptions, setSupervisorOptions] = useState([]);
   const [showSupervisorOptions, setShowSupervisorOptions] = useState(false);
   const [searchingSupervisors, setSearchingSupervisors] = useState(false);
+  const [preventionUsers, setPreventionUsers] = useState([]);
+  const [preventionOptions, setPreventionOptions] = useState([]);
+const [showPreventionOptions, setShowPreventionOptions] = useState(false);
+const [searchingPrevention, setSearchingPrevention] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -156,6 +162,45 @@ function IncidentReport() {
 
     return () => clearTimeout(timeout);
   }, [form.supervisor]);
+  useEffect(() => {
+  async function loadPreventionUsers() {
+    try {
+      const response = await fetch(`${API_URL}/incidents/prevention-users`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+
+      const data = await response.json();
+
+      setPreventionUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setPreventionUsers([]);
+    }
+  }
+
+  loadPreventionUsers();
+}, []);
+
+useEffect(() => {
+  const query = String(form.preventionName || "").trim();
+
+  if (query.length < 1) {
+    setPreventionOptions([]);
+    setShowPreventionOptions(false);
+    return;
+  }
+
+  const filtered = preventionUsers.filter((item) =>
+    String(item.name || "")
+      .toUpperCase()
+      .includes(query.toUpperCase()),
+  );
+
+  setPreventionOptions(filtered);
+  setShowPreventionOptions(true);
+}, [form.preventionName, preventionUsers]);
 
   function updateField(name, value) {
     setForm((prev) => ({
@@ -183,6 +228,17 @@ function IncidentReport() {
     setShowSupervisorOptions(false);
     setSupervisorOptions([]);
   }
+
+  function selectPreventionUser(preventionUser) {
+  setForm((prev) => ({
+    ...prev,
+    preventionUserId: preventionUser.id,
+    preventionName: preventionUser.name || "",
+  }));
+
+  setShowPreventionOptions(false);
+  setPreventionOptions([]);
+}
 
   function handlePhotos(e) {
     const selected = Array.from(e.target.files || []);
@@ -450,6 +506,49 @@ function IncidentReport() {
                 </div>
               )}
             </label>
+            <label className="vehicle-autocomplete">
+  Prevencionista
+
+  <input
+    type="text"
+    value={form.preventionName}
+    onChange={(e) => {
+      updateField("preventionName", e.target.value);
+      updateField("preventionUserId", "");
+    }}
+    onFocus={() => {
+      if (preventionOptions.length > 0) {
+        setShowPreventionOptions(true);
+      }
+    }}
+    placeholder="Buscar prevencionista..."
+    autoComplete="off"
+  />
+
+  {showPreventionOptions && (
+    <div className="vehicle-options">
+      {searchingPrevention ? (
+        <div className="vehicle-option muted">Buscando...</div>
+      ) : preventionOptions.length === 0 ? (
+        <div className="vehicle-option muted">
+          No hay prevencionistas encontrados
+        </div>
+      ) : (
+        preventionOptions.map((preventionUser) => (
+          <button
+            key={preventionUser.id}
+            type="button"
+            className="vehicle-option"
+            onMouseDown={() => selectPreventionUser(preventionUser)}
+          >
+            <strong>{preventionUser.name}</strong>
+            <span>{preventionUser.role}</span>
+          </button>
+        ))
+      )}
+    </div>
+  )}
+</label>
 
             <label>
               Responsable CGE
@@ -525,21 +624,35 @@ function IncidentReport() {
           </div>
 
           <div className="incident-upload">
-            <input
-              id="incident-photos"
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handlePhotos}
-            />
+  <input
+    id="incident-camera"
+    type="file"
+    accept="image/*"
+    capture="environment"
+    multiple
+    onChange={handlePhotos}
+  />
 
-            <label htmlFor="incident-photos">
-              <Camera size={20} />
-              Seleccionar fotografías (máx. 5)
-            </label>
+  <input
+    id="incident-gallery"
+    type="file"
+    accept="image/*"
+    multiple
+    onChange={handlePhotos}
+  />
 
-            <span>{photos.length}/5 imágenes seleccionadas</span>
-          </div>
+  <div className="incident-photo-buttons">
+    <label htmlFor="incident-camera">
+      📷 Tomar Foto ({photos.length}/5)
+    </label>
+
+    <label htmlFor="incident-gallery">
+      🖼️ Elegir desde Galería
+    </label>
+  </div>
+
+  <span>{photos.length}/5 imágenes seleccionadas</span>
+</div>
 
           {previews.length > 0 && (
             <div className="incident-preview-grid">
