@@ -47,6 +47,11 @@ function IncidentReportHistory() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [solveModalOpen, setSolveModalOpen] = useState(false);
+const [reportToSolve, setReportToSolve] = useState(null);
+const [solutionDescription, setSolutionDescription] = useState("");
+const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+const [reportToDelete, setReportToDelete] = useState(null);
 
   const [filters, setFilters] = useState({
     patent: "",
@@ -89,73 +94,95 @@ function IncidentReportHistory() {
     }
   }
 
-  async function solveReport(id) {
-    const solutionDescription = window.prompt(
-      "Describe brevemente la solución o acción realizada:",
-    );
+  function openSolveModal(report) {
+  setReportToSolve(report);
+  setSolutionDescription("");
+  setSolveModalOpen(true);
+}
 
-    if (solutionDescription === null) return;
+function closeSolveModal() {
+  setSolveModalOpen(false);
+  setReportToSolve(null);
+  setSolutionDescription("");
+}
 
-    try {
-      await fetch(`${API_URL}/incidents/${id}/solve`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          solutionDescription,
-        }),
-      });
+async function solveReport() {
+  if (!reportToSolve) return;
 
-      loadReports();
-    } catch (error) {
-      console.error(error);
-    }
+  if (!solutionDescription.trim()) {
+    alert("Debe ingresar la solución o acción realizada.");
+    return;
   }
 
-  async function deleteReport(id) {
-    const ok = window.confirm("¿Eliminar este reporte?");
-
-    if (!ok) return;
-
-    try {
-      await fetch(`${API_URL}/incidents/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      loadReports();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  useEffect(() => {
-    loadReports();
-  }, []);
-
-  const filteredReports = useMemo(() => {
-    return reports.filter((report) => {
-      const patentOk =
-        !filters.patent ||
-        String(report.vehiclePatent || "")
-          .toUpperCase()
-          .includes(filters.patent.toUpperCase());
-
-      const supervisorOk =
-        !filters.supervisor ||
-        String(report.supervisor || "")
-          .toUpperCase()
-          .includes(filters.supervisor.toUpperCase());
-
-      const typeOk = !filters.type || report.eventType === filters.type;
-
-      return patentOk && supervisorOk && typeOk;
+  try {
+    await fetch(`${API_URL}/incidents/${reportToSolve.id}/solve`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        solutionDescription,
+      }),
     });
-  }, [reports, filters]);
+
+    closeSolveModal();
+    loadReports();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+  function openDeleteModal(report) {
+  setReportToDelete(report);
+  setDeleteModalOpen(true);
+}
+
+function closeDeleteModal() {
+  setDeleteModalOpen(false);
+  setReportToDelete(null);
+}
+
+async function confirmDeleteReport() {
+  if (!reportToDelete) return;
+
+  try {
+    await fetch(`${API_URL}/incidents/${reportToDelete.id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+
+    closeDeleteModal();
+    loadReports();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+useEffect(() => {
+  loadReports();
+}, []);
+const filteredReports = useMemo(() => {
+  return reports.filter((report) => {
+    const patentOk =
+      !filters.patent ||
+      String(report.vehiclePatent || "")
+        .toUpperCase()
+        .includes(filters.patent.toUpperCase());
+
+    const supervisorOk =
+      !filters.supervisor ||
+      String(report.supervisor || "")
+        .toUpperCase()
+        .includes(filters.supervisor.toUpperCase());
+
+    const typeOk = !filters.type || report.eventType === filters.type;
+
+    return patentOk && supervisorOk && typeOk;
+  });
+}, [reports, filters]);
 
   return (
     <div className="incident-history-page">
@@ -263,7 +290,7 @@ function IncidentReportHistory() {
                 )}
 
                 {report.status === "EN_REVISION" && (
-                  <button type="button" onClick={() => solveReport(report.id)}>
+                  <button type="button" onClick={() => openSolveModal(report)}>
                     <CheckCircle2 size={18} />
                     Marcar Solucionado
                   </button>
@@ -272,7 +299,7 @@ function IncidentReportHistory() {
                 <button
                   type="button"
                   className="delete-btn"
-                  onClick={() => deleteReport(report.id)}
+                  onClick={() => openDeleteModal(report)}
                 >
                   <Trash2 size={18} />
                   Eliminar
@@ -283,12 +310,81 @@ function IncidentReportHistory() {
         </div>
       )}
 
-      {selectedReport && (
+            {selectedReport && (
         <IncidentDetailModal
           report={selectedReport}
           onClose={() => setSelectedReport(null)}
         />
       )}
+
+      {solveModalOpen && (
+        <div className="incident-modal-overlay">
+          <div className="incident-solve-modal">
+            <h3>Marcar como solucionado</h3>
+
+            <p>
+              Describe brevemente la solución o acción realizada para cerrar este
+              reporte.
+            </p>
+
+            <textarea
+              value={solutionDescription}
+              onChange={(e) => setSolutionDescription(e.target.value)}
+              placeholder="Ejemplo: Se revisó la condición reportada y se aplicó la medida correctiva correspondiente..."
+              rows={5}
+            />
+
+            <div className="incident-solve-actions">
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={closeSolveModal}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="solve-btn"
+                onClick={solveReport}
+              >
+                <CheckCircle2 size={18} />
+                Guardar solución
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteModalOpen && (
+  <div className="incident-modal-overlay">
+    <div className="incident-solve-modal">
+      <h3>Eliminar reporte</h3>
+
+      <p>
+        ¿Estás seguro de eliminar este incidente o hallazgo?
+      </p>
+
+      <div className="incident-solve-actions">
+        <button
+          type="button"
+          className="cancel-btn"
+          onClick={closeDeleteModal}
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          className="delete-confirm-btn"
+          onClick={confirmDeleteReport}
+        >
+          <Trash2 size={18} />
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

@@ -208,3 +208,84 @@
     justify-content: center;
   }
 }
+.incident-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.incident-solve-modal {
+  width: 100%;
+  max-width: 520px;
+  background: white;
+  border-radius: 22px;
+  padding: 28px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.incident-solve-modal h3 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 24px;
+}
+
+.incident-solve-modal p {
+  margin: 0 0 18px;
+  color: #64748b;
+}
+
+.incident-solve-modal textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 15px;
+  outline: none;
+}
+
+.incident-solve-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancel-btn,
+.solve-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.solve-btn {
+  background: #16a34a;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.delete-confirm-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 800;
+  cursor: pointer;
+  background: #dc2626;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

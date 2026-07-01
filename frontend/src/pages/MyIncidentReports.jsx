@@ -47,6 +47,8 @@ function MyIncidentReports() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+const [reportToDelete, setReportToDelete] = useState(null);
 
   const role = getRole();
   const canDelete = ["SUPERADMIN", "PREVENCION"].includes(role);
@@ -72,24 +74,33 @@ function MyIncidentReports() {
     }
   }
 
-  async function deleteReport(id) {
-    const confirmDelete = window.confirm("¿Deseas eliminar este reporte?");
+  function openDeleteModal(report) {
+  setReportToDelete(report);
+  setDeleteModalOpen(true);
+}
 
-    if (!confirmDelete) return;
+function closeDeleteModal() {
+  setDeleteModalOpen(false);
+  setReportToDelete(null);
+}
 
-    try {
-      await fetch(`${API_URL}/incidents/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+async function confirmDeleteReport() {
+  if (!reportToDelete) return;
 
-      loadReports();
-    } catch (error) {
-      console.error(error);
-    }
+  try {
+    await fetch(`${API_URL}/incidents/${reportToDelete.id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+
+    closeDeleteModal();
+    loadReports();
+  } catch (error) {
+    console.error(error);
   }
+}
 
   useEffect(() => {
     loadReports();
@@ -171,7 +182,7 @@ function MyIncidentReports() {
                   <button
                     type="button"
                     className="delete-btn"
-                    onClick={() => deleteReport(report.id)}
+                    onClick={() => openDeleteModal(report)}
                   >
                     <Trash2 size={18} />
                     Eliminar
@@ -189,6 +200,36 @@ function MyIncidentReports() {
           onClose={() => setSelectedReport(null)}
         />
       )}
+      {deleteModalOpen && (
+  <div className="incident-modal-overlay">
+    <div className="incident-solve-modal">
+      <h3>Eliminar reporte</h3>
+
+      <p>
+        ¿Estás seguro de eliminar este incidente o hallazgo?
+      </p>
+
+      <div className="incident-solve-actions">
+        <button
+          type="button"
+          className="cancel-btn"
+          onClick={closeDeleteModal}
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          className="delete-confirm-btn"
+          onClick={confirmDeleteReport}
+        >
+          <Trash2 size={18} />
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
